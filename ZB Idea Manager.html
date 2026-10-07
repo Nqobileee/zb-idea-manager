@@ -1,0 +1,1070 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ZB Idea Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: left rail on desktop, floating glass dock on phone; one reading column for ideas, a wide canvas for executive pages */
+:root{
+  --bg:#ffffff; --surface:#f4f7f5; --line:#e1e8e4; --ink:#0a0f0c; --ink-2:#26302b; --muted:#56655d;
+  --green:#0d4a36; --green-hover:#093827; --tint:#e8f2ed; --tint-2:#cfe3d9; --heart:#c0352b;
+  --glass:rgba(255,255,255,.74); --glass-line:rgba(13,74,54,.12); --scrim:rgba(10,15,12,.4);
+  --f-display:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{font-family:var(--f-body);color:var(--ink);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:inherit}
+input,textarea,select{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--muted)} .grow{flex:1;min-width:0} .min0{min-width:0}
+.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.code{font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.01em}
+.eyebrow{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--green);margin-bottom:6px}
+
+/* shell */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100dvh}
+.side{position:sticky;top:0;height:100dvh;border-right:1px solid var(--line);padding:22px 14px 16px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;background:var(--bg)}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 10px 20px;font-family:var(--f-display);font-weight:700;font-size:17px;letter-spacing:-.01em}
+.mark{width:30px;height:30px;border-radius:9px;background:var(--green);color:#fff;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:12px;letter-spacing:.02em;flex:none}
+.nav{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;color:var(--muted);font-weight:500;width:100%}
+.nav:hover{background:var(--surface);color:var(--ink)}
+.nav.on{background:var(--tint);color:var(--green);font-weight:600}
+.count{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--green);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.side-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:20px 12px 6px;font-weight:600}
+.side .btn.primary{margin:12px 0 4px}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+.me-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;width:100%}
+.me-row:hover{background:var(--surface)}
+.me-row small{display:block;color:var(--muted);font-size:12px}
+.main{min-width:0;padding:32px 32px 120px}
+.col{max-width:700px;margin:0 auto}
+.wide{max-width:1080px;margin:0 auto}
+.top,.dock{display:none}
+
+/* buttons, inputs, chips */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:999px;font-weight:600;font-size:14px;border:1px solid var(--line);background:var(--bg);white-space:nowrap}
+.btn:hover{background:var(--surface);border-color:var(--tint-2)}
+.btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.btn.primary:hover{background:var(--green-hover)}
+.btn.sm{height:34px;padding:0 13px;font-size:13px}
+.btn.lg{height:48px;font-size:15px}
+.btn.block{width:100%}
+.btn.ghost{border-color:transparent}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--ink)}
+.iconbtn:hover{background:var(--surface)}
+.field{display:grid;gap:6px}
+.field label,.lbl{font-size:13px;font-weight:600}
+.inp{height:44px;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:var(--bg);width:100%}
+textarea.inp{height:auto;padding:12px 14px;min-height:92px;resize:vertical;line-height:1.55}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px;background-repeat:no-repeat;padding-right:36px}
+.inp:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--tint)}
+.stack{display:grid;gap:16px}
+.err{color:var(--heart);font-size:13.5px;font-weight:500}
+.hint{font-size:13px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;background:var(--tint);color:var(--green);font-size:12.5px;font-weight:600;max-width:100%}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.ghost{background:var(--surface);color:var(--muted)}
+.chip.ok{background:var(--green);color:#fff}
+.chip.exec{background:var(--ink);color:#fff;font-size:11px;letter-spacing:.06em;text-transform:uppercase;height:22px}
+.tag{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap;flex:none}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.t-idea{background:#edf1ef;color:#3e4c45}
+.t-prototype{background:#fcf0d9;color:#8a5306}
+.t-demo{background:#e5eefa;color:#1d4f91}
+.t-pilot{background:#eee8f9;color:#5a3a99}
+.t-launched{background:var(--green);color:#fff}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--bg);min-width:0}
+.search:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--tint)}
+.search input{border:0;outline:0;background:none;width:100%;min-width:0;height:100%}
+.av{border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-weight:700;flex:none;overflow:hidden;letter-spacing:.02em}
+.av img{width:100%;height:100%;object-fit:cover}
+.dot{width:3px;height:3px;border-radius:50%;background:var(--muted);flex:none;opacity:.6}
+
+/* page heads + tabs */
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.title{font-family:var(--f-display);font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
+.sub{margin-top:8px;max-width:60ch}
+.h-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.h-tools .search{width:260px}
+.tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:2px;overflow-x:auto}
+.tab{padding:11px 2px;margin-right:22px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--green)}
+.tab:hover{color:var(--ink)}
+.fchips{display:flex;gap:6px;flex-wrap:wrap;padding-top:14px}
+.empty{padding:48px 16px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:18px;margin-bottom:4px}
+.sample{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:1px dashed var(--tint-2);border-radius:999px;padding:3px 10px}
+
+/* challenge strip */
+.strip-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:10px}
+.strip-h button{color:var(--green);font-weight:600}
+.strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin-bottom:22px;scroll-snap-type:x mandatory}
+.ch-card{flex:0 0 268px;scroll-snap-align:start;border:1px solid var(--tint-2);border-radius:16px;padding:14px 16px;background:linear-gradient(160deg,var(--tint),var(--bg) 70%);display:flex;flex-direction:column;gap:8px}
+.ch-card:hover{border-color:var(--green)}
+.ch-card h3{font-family:var(--f-display);font-size:16px;font-weight:650;line-height:1.25;letter-spacing:-.01em}
+.ch-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:auto}
+
+/* idea card */
+.card{display:block;padding:22px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.card:hover .card-title{color:var(--green)}
+.why{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green);margin-bottom:10px}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);min-width:0}
+.meta b{color:var(--ink);font-weight:600;white-space:nowrap}
+.plink{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.plink:hover b{text-decoration:underline}
+.plink b{overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:520px){.card .meta .dept,.card .meta .dept+.dot{display:none}}
+.card-title{font-family:var(--f-display);font-size:21px;font-weight:650;letter-spacing:-.018em;line-height:1.25;margin:12px 0 6px;text-wrap:balance;transition:color .15s}
+.card-sum{color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:65ch}
+.card-foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.card-foot:empty{display:none}
+.acts{display:flex;align-items:center;gap:2px;margin-top:10px;margin-left:-10px}
+.act{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:999px;color:var(--muted);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.act:hover{background:var(--surface);color:var(--ink)}
+.act.liked{color:var(--heart)}
+.act.saved{color:var(--green)}
+.act.push{margin-left:auto}
+.act.liked svg{animation:pop .3s ease}
+@keyframes pop{50%{transform:scale(1.3)}}
+
+/* idea page */
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-weight:600;margin-bottom:20px;margin-left:-4px}
+.back:hover{color:var(--ink)}
+.i-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.i-title{font-family:var(--f-display);font-size:clamp(29px,5vw,42px);line-height:1.06;letter-spacing:-.032em;font-weight:700;margin:16px 0 14px;text-wrap:balance}
+.lede{font-size:19px;line-height:1.55;color:var(--ink-2);margin-bottom:24px;max-width:62ch}
+.author{display:flex;align-items:center;gap:12px;padding:14px 0;border-block:1px solid var(--line)}
+.author b{display:block}
+.author small{display:block;color:var(--muted);font-size:13px}
+.life{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:24px 0 26px}
+.life span{display:block;height:4px;border-radius:4px;background:var(--line)}
+.life .done span{background:var(--green)}
+.life small{display:block;font-size:11.5px;color:var(--muted);margin-top:7px}
+.life .cur small{color:var(--ink);font-weight:700}
+.ch-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:var(--tint);margin-bottom:26px;width:100%}
+.ch-banner small{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.ch-banner b{font-family:var(--f-display);font-weight:650}
+.prose p{font-size:17px;line-height:1.75;margin:0 0 1.1em;max-width:65ch;color:var(--ink-2)}
+.section-h{font-family:var(--f-display);font-size:19px;font-weight:650;letter-spacing:-.01em;margin:36px 0 12px}
+.docs{display:grid;gap:8px}
+.doc{display:flex;align-items:center;gap:12px;padding:10px 14px 10px 10px;border:1px solid var(--line);border-radius:12px;width:100%}
+.doc:hover{border-color:var(--tint-2);background:var(--surface)}
+.doc b{display:block;font-weight:600;font-size:14px}
+.ext{width:38px;height:44px;border-radius:6px 12px 6px 6px;display:grid;place-items:center;font-family:var(--f-mono);font-size:9.5px;font-weight:600;color:#fff;flex:none;letter-spacing:.04em}
+.e-pdf{background:#b23a2e}.e-xlsx{background:#1f6f45}.e-pptx{background:#c4581f}.e-docx{background:#2b5797}.e-other{background:#56655d}
+.big-acts{border-block:1px solid var(--line);padding:4px 0;margin-top:30px}
+.big-acts .acts{margin:0}
+.exec{border:1px solid var(--tint-2);background:var(--tint);border-radius:18px;padding:18px;margin-top:24px}
+.exec-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.exec-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.exec .inp{height:36px;width:auto;font-size:13px;background-color:var(--bg)}
+.composer{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px}
+.composer .right{display:flex;justify-content:flex-end;margin-top:8px}
+.cm{display:flex;gap:12px;padding:16px 0;border-bottom:1px solid var(--line)}
+.cm .meta{margin-bottom:4px}
+.cm p{color:var(--ink-2);max-width:65ch}
+
+/* profile */
+.banner{height:136px;border-radius:20px;background:radial-gradient(rgba(255,255,255,.14) 1.2px,transparent 1.3px) 0 0/14px 14px,linear-gradient(120deg,var(--green),#1d6b51)}
+.p-head{display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px;margin-top:-46px}
+.p-av{position:relative}
+.p-av .av{border:4px solid var(--bg);box-sizing:content-box}
+.cam{position:absolute;right:2px;bottom:4px;width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;cursor:pointer;border:2px solid var(--bg)}
+.p-btns{display:flex;gap:8px;padding-bottom:6px}
+.p-name{font-family:var(--f-display);font-size:30px;font-weight:700;letter-spacing:-.025em;margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.p-sub{color:var(--ink-2);font-weight:500;margin-top:2px}
+.p-bio{margin-top:12px;max-width:62ch;color:var(--ink-2)}
+.p-stats{display:flex;gap:22px;flex-wrap:wrap;margin:16px 0 22px;font-size:14px;color:var(--muted)}
+.p-stats b{color:var(--ink);font-variant-numeric:tabular-nums;margin-right:4px}
+
+/* members */
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:18px}
+.mcard{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:16px;width:100%}
+.mcard:hover{border-color:var(--tint-2);background:var(--surface)}
+.mcard b{display:block}
+.mcard small{display:block;color:var(--muted);font-size:12.5px}
+
+/* chat */
+.chat{display:grid;grid-template-columns:300px minmax(0,1fr);border:1px solid var(--line);border-radius:20px;height:calc(100dvh - 160px);min-height:420px;overflow:hidden}
+.clist{border-right:1px solid var(--line);overflow-y:auto;padding:8px}
+.citem{display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;width:100%}
+.citem:hover{background:var(--surface)}
+.citem.on{background:var(--tint)}
+.citem .row{display:flex;justify-content:space-between;gap:8px}
+.citem small{color:var(--muted);font-size:12px;flex:none}
+.citem .trunc{display:block;font-size:13px;color:var(--muted)}
+.thread{display:flex;flex-direction:column;min-width:0;min-height:0}
+.th-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.th-head small{display:block;color:var(--muted);font-size:12px}
+.msgs{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(var(--bg),var(--surface))}
+.bub{max-width:75%;padding:9px 13px;border-radius:16px 16px 16px 4px;background:var(--bg);border:1px solid var(--line);overflow-wrap:anywhere}
+.bub.me{align-self:flex-end;background:var(--green);color:#fff;border-color:var(--green);border-radius:16px 16px 4px 16px}
+.bub small{display:block;font-size:10.5px;opacity:.7;margin-top:2px}
+.th-form{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+.th-form .inp{border-radius:999px}
+.mob-only{display:none}
+
+/* activity */
+.note{display:flex;gap:14px;padding:18px 0;border-bottom:1px solid var(--line)}
+.n-ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--green);flex:none;position:relative}
+.n-ic.hot{background:var(--green);color:#fff}
+.n-ic.like{color:var(--heart)}
+.unread::after{content:"";position:absolute;top:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--heart);border:2px solid var(--bg)}
+.note p{color:var(--ink-2)}
+.note p b{color:var(--ink)}
+.note .when{font-size:12.5px;color:var(--muted);margin-top:2px}
+.mailcard{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-top:12px;background:var(--surface)}
+.mail-h{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
+.mailcard .subj{font-weight:700;margin-bottom:6px}
+.mailcard .body{white-space:pre-wrap;color:var(--ink-2);font-size:14px}
+.reply{display:flex;gap:8px;margin-top:12px}
+.reply .inp{background:var(--bg)}
+.replied{margin-top:12px;font-size:13.5px;color:var(--green);font-weight:600;display:flex;gap:6px;align-items:flex-start}
+
+/* challenges */
+.chl{display:grid;gap:14px}
+.chx{border:1px solid var(--line);border-radius:20px;padding:20px;display:grid;gap:10px}
+.chx h2{font-family:var(--f-display);font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
+.chx .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kw{font-family:var(--f-mono);font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--surface);color:var(--muted)}
+.closes{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.closes b{color:var(--ink)}
+
+/* executive */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.kpi .n{font-family:var(--f-display);font-size:34px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .l{font-size:13px;color:var(--muted)}
+.kpi.lead{background:var(--green);border-color:var(--green);color:#fff}
+.kpi.lead .l{color:rgba(255,255,255,.75)}
+.panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.panel{border:1px solid var(--line);border-radius:20px;padding:18px 20px;min-width:0}
+.panel h3{font-family:var(--f-display);font-size:16px;font-weight:650;margin-bottom:14px}
+.hb{display:grid;grid-template-columns:minmax(0,130px) minmax(0,1fr) 28px;gap:10px;align-items:center;font-size:13px;margin-bottom:9px}
+.hb .track{height:10px;border-radius:5px;background:var(--surface);overflow:hidden}
+.hb .fill{height:100%;border-radius:5px;background:var(--green)}
+.hb .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.pipe{display:flex;height:16px;border-radius:8px;overflow:hidden;gap:2px;margin-bottom:14px}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:13px}
+.legend b{margin-left:auto;font-variant-numeric:tabular-nums;padding-right:6px}
+.lc{list-style:none;margin:0;padding:0}
+.lc li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lc li:last-child{border-bottom:0}
+.lc .num{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;margin-left:auto;white-space:nowrap}
+.rank-ctl{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:18px;align-items:end;padding:18px;border:1px solid var(--line);border-radius:20px;margin-bottom:12px}
+.weights{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.wt label{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px}
+.wt output{font-variant-numeric:tabular-nums;color:var(--green)}
+.wt input{width:100%;accent-color:var(--green)}
+.sim{font-size:12.5px;color:var(--muted);margin-bottom:22px;display:flex;gap:6px;align-items:center}
+.rkl{display:grid;gap:10px}
+.rk{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:16px;padding:18px;border:1px solid var(--line);border-radius:20px;align-items:center}
+.rk.top{border-color:var(--tint-2);background:linear-gradient(100deg,var(--tint),var(--bg) 55%)}
+.rk-n{font-family:var(--f-display);font-size:36px;font-weight:800;color:var(--green);letter-spacing:-.04em;text-align:center;font-variant-numeric:tabular-nums}
+.rk:not(.top) .rk-n{font-size:22px;color:var(--muted)}
+.rk-title{font-family:var(--f-display);font-size:18px;font-weight:650;letter-spacing:-.015em;line-height:1.25;margin:6px 0 10px;display:block;text-wrap:balance}
+.rk-title:hover{color:var(--green)}
+.bars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mb small{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:4px;font-variant-numeric:tabular-nums}
+.mb .track{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.mb .fill{height:100%;background:var(--green);border-radius:3px}
+.rk-side{display:grid;gap:10px;justify-items:end}
+.score{font-family:var(--f-display);font-size:30px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.score small{font-size:13px;color:var(--muted);font-weight:500;margin-left:2px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:18px}
+table{width:100%;border-collapse:collapse;min-width:780px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:left;padding:12px 14px;background:var(--surface);font-weight:600}
+td{padding:12px 14px;border-top:1px solid var(--line);font-size:14px;vertical-align:middle}
+td.n{font-variant-numeric:tabular-nums;text-align:right}
+th.n{text-align:right}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface)}
+.ver{display:inline-flex;align-items:center;gap:4px;color:var(--green);font-weight:600;font-size:12.5px}
+.mail{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.mail+.mail{margin-top:10px}
+.mail-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;width:100%}
+.mail-row:hover{background:var(--surface)}
+.mail-row b{display:block;font-size:14px}
+.mail-row small{color:var(--muted);font-size:12.5px}
+.mtype{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:var(--tint);color:var(--green)}
+.mtype.Digest{background:#fcf0d9;color:#8a5306}
+.mtype.Reply{background:#e5eefa;color:#1d4f91}
+.mail-body{padding:4px 16px 16px;border-top:1px solid var(--line);white-space:pre-wrap;color:var(--ink-2);font-size:14px}
+.mail-body .hdr{font-family:var(--f-mono);font-size:12px;color:var(--muted);padding:12px 0;white-space:normal}
+
+/* modal + toast */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:80;display:grid;place-items:center;padding:16px;animation:fade .15s}
+.sheet{background:var(--bg);border-radius:22px;width:min(580px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:22px;box-shadow:0 30px 80px rgba(10,15,12,.25);animation:rise .2s ease}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}
+.sheet-h h2{font-family:var(--f-display);font-size:22px;font-weight:700;letter-spacing:-.02em}
+.sheet-f{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.drop{display:flex;align-items:center;gap:10px;padding:14px;border:1.5px dashed var(--tint-2);border-radius:14px;color:var(--green);font-weight:600;cursor:pointer;font-size:14px}
+.drop:hover{background:var(--tint)}
+.dlist{display:grid;gap:6px}
+.dlist div{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 10px;background:var(--surface);border-radius:8px}
+.schips{display:flex;gap:8px;flex-wrap:wrap}
+.schip{height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);font-weight:600;font-size:13px}
+.schip.on{background:var(--green);border-color:var(--green);color:#fff}
+.menu{display:grid;gap:2px}
+.menu .nav{padding:12px}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{transform:translateY(16px);opacity:0}}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:90;background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;box-shadow:0 12px 30px rgba(10,15,12,.25);display:flex;gap:8px;align-items:center;max-width:calc(100% - 32px);animation:rise .2s ease}
+
+/* login */
+.login{display:grid;grid-template-columns:1.05fr 1fr;min-height:100dvh}
+.login-art{background:radial-gradient(rgba(255,255,255,.12) 1.2px,transparent 1.3px) 0 0/16px 16px,linear-gradient(150deg,var(--green),#0f5c43);color:#fff;padding:44px 52px;display:flex;flex-direction:column;justify-content:space-between;gap:36px}
+.login-art .mark{background:#fff;color:var(--green)}
+.hero{font-family:var(--f-display);font-size:clamp(34px,4.6vw,58px);font-weight:700;line-height:1.02;letter-spacing:-.035em;max-width:13ch;text-wrap:balance}
+.hero-sub{margin-top:16px;font-size:17px;max-width:42ch;color:rgba(255,255,255,.82)}
+.ladder{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.lad{padding:7px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.32);font-size:13px;font-weight:600;transform:translateY(calc(var(--n) * -9px))}
+.lad:last-child{background:#fff;color:var(--green);border-color:#fff}
+.fine{font-size:13px;color:rgba(255,255,255,.7);display:flex;gap:6px;align-items:center}
+.login-form{display:grid;place-items:center;padding:40px 16px}
+.lf{width:min(400px,100%)}
+.lf-h{font-family:var(--f-display);font-size:30px;font-weight:700;letter-spacing:-.03em;margin-bottom:4px}
+.seg{display:grid;grid-template-columns:1fr 1fr;padding:4px;background:var(--surface);border-radius:12px;gap:4px}
+.seg button{height:36px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted)}
+.seg button.on{background:var(--bg);color:var(--green);box-shadow:0 1px 3px rgba(10,15,12,.12)}
+.code-inp{font-family:var(--f-mono);font-size:26px;letter-spacing:.5em;text-align:center;height:60px}
+.lf .note-s{margin-top:18px;font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+
+/* phone */
+@media (max-width:899px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side,.desk{display:none!important}
+  .mob-only{display:inline-flex}
+  .top{display:flex;position:fixed;top:0;left:0;right:0;z-index:40;height:calc(56px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 8px 0;align-items:center;justify-content:space-between;background:var(--glass);backdrop-filter:blur(16px) saturate(1.6);-webkit-backdrop-filter:blur(16px) saturate(1.6);border-bottom:1px solid var(--line)}
+  .top-mid{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:16px}
+  .top-mid .mark{width:26px;height:26px;font-size:10.5px;border-radius:8px}
+  .top-r{display:flex;align-items:center;gap:2px}
+  .main{padding:68px 16px 124px}
+  .dock{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));height:66px;z-index:40;border-radius:24px;background:var(--glass);backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);border:1px solid var(--glass-line);box-shadow:0 12px 34px rgba(13,74,54,.16)}
+  .dk{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--muted);position:relative}
+  .dk.on{color:var(--green)}
+  .dk .count{position:absolute;top:-6px;left:calc(50% + 4px);height:17px;min-width:17px;font-size:10px;padding:0 4px}
+  .dk-plus{width:50px;height:50px;border-radius:17px;background:var(--green);color:#fff;display:grid;place-items:center;margin:0 auto;box-shadow:0 8px 20px rgba(13,74,54,.35)}
+  .title{font-size:30px}
+  .panels{grid-template-columns:minmax(0,1fr)}
+  .rank-ctl{grid-template-columns:minmax(0,1fr)}
+  .weights{grid-template-columns:minmax(0,1fr)}
+  .rk{grid-template-columns:36px minmax(0,1fr);padding:16px}
+  .rk-side{grid-column:1/-1;grid-auto-flow:column;justify-content:space-between;align-items:center}
+  .bars{grid-template-columns:minmax(0,1fr)}
+  .chat{grid-template-columns:minmax(0,1fr);height:calc(100dvh - 230px)}
+  .chat .thread{display:none}
+  .chat.open .thread{display:flex}
+  .chat.open .clist{display:none}
+  .clist{border-right:0}
+  .scrim{place-items:end center;padding:0}
+  .sheet{border-radius:24px 24px 0 0;width:100%;max-height:92dvh;padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+  .login{grid-template-columns:minmax(0,1fr)}
+  .login-art{padding:28px 20px 34px;gap:22px}
+  .hero{font-size:34px}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .hb{grid-template-columns:minmax(0,96px) minmax(0,1fr) 24px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="root"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const NOW=Date.now(), H=36e5, D=24*H;
+const STATUSES=['Idea','Prototype','Demo','Pilot','Launched'];
+const COLORS=['#0d4a36','#2f6f5e','#7a5c2e','#3b5a8a','#6b4a8a','#8a3b3b','#4a6b2f','#2e6a7a','#5b5148'];
+
+const P={
+home:'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+chat:'M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z',
+bell:'M6 8a6 6 0 1 1 12 0c0 7 3 8.5 3 8.5H3S6 15 6 8M10 20.5a2 2 0 0 0 4 0',
+users:'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.6a3.5 3.5 0 0 1 0 6.6',
+plus:'M12 5v14M5 12h14',
+search:'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20.5 20.5 16 16',
+filter:'M4 6h16M7 12h10M10 18h4',
+heart:'M12 20s-7.5-4.6-9.3-9.4A4.9 4.9 0 0 1 12 7.2a4.9 4.9 0 0 1 9.3 3.4C19.5 15.4 12 20 12 20z',
+comment:'M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-5 4v-4H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z',
+share:'M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6M16 7l-4-4-4 4M12 3v12',
+save:'M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.5-6.5 4.5v-16a1 1 0 0 1 1-1z',
+back:'M15 18l-6-6 6-6',
+x:'M6 6l12 12M18 6 6 18',
+flag:'M5 21V4M5 4h11l-2 4 2 4H5',
+chart:'M3 20.5h18M6 16.5v-5M11 16.5V6M16 16.5v-8',
+spark:'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z',
+user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0',
+mail:'M3.5 6h17v12h-17zM4 6.5l8 6 8-6',
+check:'M5 12.5l4.5 4.5L19 7',
+send:'M21 3 10 14M21 3l-7 18-4-7-7-4z',
+edit:'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+camera:'M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6',
+logout:'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11',
+shield:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
+clip:'M20 11l-8.5 8.5a5 5 0 0 1-7-7L13 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L14.5 7',
+trophy:'M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M10 17h4v3.5h-4z',
+swap:'M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7',
+file:'M14 3H6.5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V7.5zM14 3v4.5h4.5'
+};
+const icon=(n,s=20,fill)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="${fill?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n]}"/></svg>`;
+
+/* ---------- sample data (fictional people and figures) ---------- */
+const mkEmail=n=>n.toLowerCase().replace(/[^a-z ]/g,'').trim().replace(/\s+/g,'.')+'@zb.co.zw';
+const U={};
+[
+ ['u2','Rumbidzai Ncube','Branch Operations Supervisor','Retail Banking','Runs payday operations at one of our busiest city branches. Interested in anything that makes the banking hall calmer.','2016'],
+ ['u3','Kudakwashe Mlambo','Software Engineer','ZB Innovation Hub','Builds prototypes at the Hub. Happy to help anyone turn a sketch into something clickable.','2021'],
+ ['u4','Farai Sibanda','Relationship Manager','SME Banking','Looks after about 120 small business clients in Harare and Chitungwiza.','2018'],
+ ['u5','Nyasha Gumbo','Risk Analyst','Risk and Compliance','Works on KYC, fraud limits and anything that needs a second look before it goes live.','2020'],
+ ['u6','Tapiwa Dube','Head of Digital Channels','Executive','Sponsors the idea programme. Sets the challenges and reviews the top ranked ideas every week.','2012',true],
+ ['u7','Chipo Marufu','Customer Experience Lead','Retail Banking','Listens to complaints for a living, then tries to remove the reason for them.','2017'],
+ ['u8','Blessing Moyo','Product Officer','ZB Life','Designs micro-insurance products that ride on payments people already make.','2019'],
+ ['u9','Munyaradzi Shumba','Network Engineer','IT Infrastructure','Keeps branch networks up. Quietly interested in replacing paper with tablets.','2015']
+].forEach((r,n)=>U[r[0]]={id:r[0],name:r[1],title:r[2],dept:r[3],bio:r[4],joined:r[5],isAdmin:!!r[6],c:COLORS[(n+1)%COLORS.length],email:mkEmail(r[1]),img:null});
+
+const CH={
+ c1:{id:'c1',title:'Shorter queues for cash withdrawals',brief:'Branches see long queues on paydays. We want ideas that cut waiting time for cash withdrawals without adding staff.',keywords:['withdraw','queue','cash','atm','payday','branch','wait'],deadline:new Date(2026,9,31).getTime(),by:'u6',posted:NOW-8*D},
+ c2:{id:'c2',title:'Faster account opening for small businesses',brief:'Opening an SME account takes too many visits. Show us how to get a business transacting in days, not weeks.',keywords:['sme','business','onboard','account','kyc','document','digital'],deadline:new Date(2026,10,15).getTime(),by:'u6',posted:NOW-15*D},
+ c3:{id:'c3',title:'Paper-light branches',brief:'Every branch prints and files thousands of forms a month. Which forms can go digital first, and how?',keywords:['paper','form','print','sign','tablet','file','digital'],deadline:new Date(2026,11,1).getTime(),by:'u6',posted:NOW-20*D}
+};
+
+let SEQ=150;
+const IDEAS=[
+ {id:'i1',num:141,author:'u2',challenge:'c1',status:'Pilot',created:NOW-6*D,likes:41,shares:6,
+  title:'Pre-booked cash pickup slots',
+  summary:'Customers book a 10-minute window on mobile banking, and a teller pre-counts the cash before they arrive. Collection happens at a dedicated counter, away from the main queue.',
+  body:['On payday our branch serves about three times its normal withdrawal volume between 08:00 and 11:00. Most of that time is spent counting notes at the counter while the queue grows behind each customer.',
+  'The idea is simple. A customer opens mobile banking, picks an amount and a 10-minute pickup slot, and confirms with their PIN. The amount is held on the account straight away. Back office staff pre-count and seal the cash in labelled envelopes in the quiet hour before opening.',
+  'At the branch, the customer goes to a pickup counter, shows ID and a one-time code, and leaves. In a manual dry run each pickup took under 90 seconds.',
+  'We ran a two-week pilot with 40 volunteer customers. Their average payday wait dropped from 47 minutes to 6 minutes. The attached sheet has the counts by day, and the flow document covers what happens to cash that is never collected.'],
+  docs:[{n:'Pickup_slot_flow.pdf',s:'1.2 MB'},{n:'Payday_queue_counts.xlsx',s:'340 KB'}],
+  comments:[{u:'u7',t:'The 6 minute figure is impressive. What happens to the envelope if someone does not show up?',at:NOW-5*D},{u:'u2',t:'Unclaimed envelopes go back to the vault at 14:00 and the hold on the account is released automatically.',at:NOW-5*D+3*H},{u:'u6',t:'Good evidence. Let us talk about three more branches before the December payday.',at:NOW-2*D}]},
+ {id:'i2',num:143,author:'u3',challenge:'c1',status:'Prototype',created:NOW-4*D,likes:37,shares:9,
+  title:'Cardless ATM withdrawals with one-time codes',
+  summary:'Generate a 6-digit code in the app and withdraw at any ZB ATM without a card. Card problems stop sending people into the banking hall just to get cash.',
+  body:['A large share of the people at the enquiries desk on payday are there because of a card: blocked, retained by the ATM, or a forgotten PIN. Most of them only want cash.',
+  'With this feature the customer enters an amount in the app and gets a 6-digit code that is valid for 30 minutes. At the ATM they choose "Cardless withdrawal", type their phone number and the code, and take the cash.',
+  'The prototype runs on the Hub test environment against a mock ATM switch. Codes are bound to the registered device and capped at US$200 per code. The next step is a conversation with our switch provider about support for code-based transactions.'],
+  docs:[{n:'Cardless_ATM_architecture.pdf',s:'2.4 MB'},{n:'Prototype_screens.pptx',s:'5.1 MB'}],
+  comments:[{u:'u5',t:'From a risk point of view, cap the amount and bind the code to the device. Daily limits per customer too.',at:NOW-3*D},{u:'u3',t:'Agreed. The prototype already caps at US$200 per code and only works from the registered device.',at:NOW-3*D+2*H}]},
+ {id:'i3',num:146,author:'u7',challenge:'c1',status:'Idea',created:NOW-2*D,likes:18,shares:2,
+  title:'Queue tickets that text you when it is your turn',
+  summary:'Customers take a ticket at the door, leave, and get an SMS when five people are ahead of them. The banking hall stops being a waiting room.',
+  body:['People do not mind waiting as much as they mind standing. Most of our payday complaints mention the standing, the heat and not knowing how long it will take.',
+  'Our ticket machines already know each customer\'s position. If the ticket asks for a phone number, the queue system can send an SMS when the customer is five places away, so they can wait in the car or do their shopping nearby.',
+  'This needs a small change to the ticket screen and an SMS integration. I do not know yet what the queue vendor supports, so that is the first thing to check.'],
+  docs:[{n:'Queue_SMS_mockup.pdf',s:'680 KB'}],
+  comments:[{u:'u9',t:'Our SMS gateway can handle this volume. I can check the cost per message.',at:NOW-1*D}]},
+ {id:'i4',num:138,author:'u4',challenge:'c2',status:'Demo',created:NOW-9*D,likes:29,shares:5,
+  title:'WhatsApp onboarding assistant for small businesses',
+  summary:'SME owners start account opening on WhatsApp, send their documents as photos, and get a checklist of what is still missing before they come to a branch.',
+  body:['Most of my new SME clients come to the branch three or four times before their account is open. Each visit is usually about one missing document.',
+  'The assistant asks the owner a few questions, tells them exactly which documents their type of business needs, and accepts photos of each one. A relationship manager reviews the pack before the client is invited in, so the branch visit is only for signing.',
+  'We have a clickable demo with the Hub that walks through a sole trader and a private limited company. The demo script is attached.'],
+  docs:[{n:'SME_onboarding_journey.pdf',s:'1.8 MB'},{n:'Demo_script.docx',s:'96 KB'}],
+  comments:[{u:'u5',t:'We would need to store the photos inside our own systems, not on the phone or in WhatsApp history.',at:NOW-8*D},{u:'u4',t:'Yes, the demo moves each photo to our document store and deletes it from the chat session.',at:NOW-7*D}]},
+ {id:'i5',num:135,author:'u5',challenge:'c2',status:'Idea',created:NOW-12*D,likes:22,shares:3,
+  title:'One KYC record across the ZB group',
+  summary:'Customers who already passed KYC at ZB Bank should not repeat it for ZB Life or the building society. One verified record, shared with the customer\'s consent.',
+  body:['Today a customer who banks with us and then buys a ZB Life policy goes through identity checks twice, with the same documents.',
+  'A shared KYC record, kept by Risk and Compliance, would let each group company reuse a verified identity when the customer agrees. Each company would still run its own product checks.',
+  'The attached sheet lists the fields each company collects today and where they overlap. Legal review on data sharing between group companies is the first step.'],
+  docs:[{n:'KYC_data_fields.xlsx',s:'210 KB'}],
+  comments:[{u:'u8',t:'This would cut our policy onboarding time a lot. Happy to test with ZB Life.',at:NOW-10*D}]},
+ {id:'i6',num:144,author:'u9',challenge:'c3',status:'Prototype',created:NOW-5*D,likes:25,shares:4,
+  title:'Tablet signing for branch forms',
+  summary:'Replace the 14 most common paper forms with tablet forms that customers sign on screen. Signed PDFs file themselves in the document system.',
+  body:['I counted the forms printed at two branches over a month. Fourteen forms make up most of the paper, and most of them are re-typed into a system later.',
+  'A tablet at each service desk would show the form already filled from the customer\'s record. The customer checks it, signs with a stylus, and the signed PDF goes straight into the document system with the right reference.',
+  'I have a working prototype for the address change form on a spare tablet. The inventory of forms and the prototype screens are attached.'],
+  docs:[{n:'Form_inventory.xlsx',s:'120 KB'},{n:'Tablet_prototype.pdf',s:'2.0 MB'}],
+  comments:[{u:'u7',t:'Customers will love not filling the same details again.',at:NOW-4*D}]},
+ {id:'i7',num:121,author:'u8',challenge:null,status:'Launched',created:NOW-34*D,likes:52,shares:11,
+  title:'Micro-insurance bundled with school fees payments',
+  summary:'Parents paying school fees through ZB can add US$1 a month of cover that pays the rest of the term\'s fees if the payer dies or becomes disabled.',
+  body:['Parents already pay school fees through our channels every term. Adding cover at that moment costs them almost nothing in effort.',
+  'The cover pays outstanding fees for the current term directly to the school. Claims need a death certificate or a medical report and are settled within ten working days.',
+  'The product went live with three partner schools this term. The Q3 uptake report is attached.'],
+  docs:[{n:'Product_sheet.pdf',s:'450 KB'},{n:'Uptake_report_Q3.pdf',s:'1.1 MB'}],
+  comments:[{u:'u4',t:'Some of my SME clients run private schools. Can I introduce them?',at:NOW-20*D},{u:'u8',t:'Please do, send them my way.',at:NOW-19*D}]},
+ {id:'i8',num:149,author:'me',challenge:'c1',status:'Idea',created:NOW-1*D,likes:9,shares:1,
+  title:'Agent cash-out at partner retailers on payday',
+  summary:'Let customers withdraw small amounts at partner supermarkets using a code from the app, so fewer people need the branch at all on payday.',
+  body:['Supermarkets near our branches hold a lot of cash at the end of each day and pay to have it collected.',
+  'Customers could generate a withdrawal code in the app and collect up to a set amount at a partner till. The retailer is paid back electronically the same day, so it also moves less cash in and out of the store.',
+  'I have not costed this yet. It could reuse the code flow from the cardless ATM prototype.'],
+  docs:[],
+  comments:[{u:'u4',t:'Retail partners already ask us for cash deposit services. This could work both ways.',at:NOW-20*H}]},
+ {id:'i9',num:132,author:'me',challenge:'c1',status:'Prototype',created:NOW-14*D,likes:31,shares:4,approved:true,approvedBy:'u6',approvedAt:NOW-3*D,
+  title:'Payday cash forecasting from payroll calendars',
+  summary:'Use the payroll dates of large employers that bank with us to forecast which branches need extra cash and tellers on which days.',
+  body:['Branch cash orders are based mostly on last month. Paydays move, and when they do, branches run short or hold too much cash.',
+  'Many large employers pay salaries through us, so we know their pay dates in advance. Mapping each employer\'s staff to the branches they use gives a day-by-day forecast of withdrawals per branch.',
+  'I built a spreadsheet model and back-tested it on four months of data for six branches. The forecast and the back-test are attached.'],
+  docs:[{n:'Forecast_model.xlsx',s:'820 KB'},{n:'Branch_backtest.pdf',s:'1.4 MB'}],
+  comments:[{u:'u2',t:'This matched our payday counts closely in the back-test. Treasury should see it.',at:NOW-10*D},{u:'u6',t:'Approved for a December test with Treasury.',at:NOW-3*D}]}
+];
+IDEAS.forEach(i=>{i.liked=false;i.saved=false;i.approved=!!i.approved});
+
+const CONVS=[
+ {id:'k1',with:'u3',msgs:[{from:'u3',t:'Saw your agent cash-out idea. The one-time code flow from my cardless ATM prototype could be reused.',at:NOW-6*H},{from:'me',t:'That would save a lot of work. Can we sit together on Thursday?',at:NOW-5*H},{from:'u3',t:'Thursday 10:00 at the Hub works.',at:NOW-4*H}]},
+ {id:'k2',with:'u2',msgs:[{from:'u2',t:'Your forecasting model matched our payday counts almost exactly.',at:NOW-2*D},{from:'me',t:'Thank you. Can I use your branch for the December test?',at:NOW-2*D+H}]},
+ {id:'k3',with:'u6',msgs:[{from:'u6',t:'Please send me the back-test summary before Friday.',at:NOW-3*D}]}
+];
+let NSEQ=10;
+const NOTES=[
+ {id:'n1',type:'approval',idea:'i9',from:'u6',at:NOW-3*D,unread:true,email:'e0',note:'Strong work. Treasury wants to test this for the December payday cycle. Can you join a call next week?'},
+ {id:'n2',type:'like',idea:'i8',from:'u2',at:NOW-5*H,unread:true},
+ {id:'n3',type:'comment',idea:'i8',from:'u4',at:NOW-20*H,unread:true},
+ {id:'n4',type:'like',idea:'i9',from:'u7',at:NOW-2*D,unread:false},
+ {id:'n5',type:'challenge',challenge:'c1',from:'u6',at:NOW-8*D,unread:false}
+];
+let ESEQ=1;
+const EMAILS=[];
+
+/* ---------- state ---------- */
+const S={authed:false,step:'creds',email:'tinashe.moyo@zb.co.zw',role:'employee',err:'',
+ route:{name:'home'},stack:[],feedTab:'foryou',filter:{statuses:[],challenge:'all'},search:'',searchOpen:false,
+ modal:null,chatOpen:null,memberQ:'',userQ:'',openMail:null,ptab:'ideas',rank:{ch:'c1',w:{rel:40,eng:35,q:25}},draftDocs:[],scrollTo:null};
+
+const ME=()=>U.me;
+const I=id=>IDEAS.find(x=>x.id===id);
+const code=i=>'ZB-IDEA-'+String(i.num).padStart(4,'0');
+const first=u=>u.name.split(' ')[0];
+const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+function ago(t){const s=(Date.now()-t)/1000;if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';if(s<86400*7)return Math.floor(s/86400)+'d';return fmt(t)}
+function fmt(t){return new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+function fmtShort(t){return new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}
+const initials=n=>n.split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+function av(u,s=32){return `<span class="av" style="width:${s}px;height:${s}px;background:${u.c};font-size:${Math.round(s*.36)}px">${u.img?`<img src="${u.img}" alt="">`:initials(u.name)}</span>`}
+const tag=s=>`<span class="tag t-${s.toLowerCase()}">${s}</span>`;
+function ext(n){const e=(n.split('.').pop()||'').toLowerCase();const k=['pdf','xlsx','pptx','docx'].includes(e)?e:'other';return `<span class="ext e-${k}">${esc(e.toUpperCase().slice(0,4))}</span>`}
+const plink=(u,s=26)=>`<span class="plink" data-a="go" data-r="profile" data-id="${u.id}" role="link" tabindex="0">${av(u,s)}<b>${esc(u.name)}</b></span>`;
+
+/* ---------- ranking model (stand-in formula) ---------- */
+const text=i=>(i.title+' '+i.summary+' '+i.body.join(' ')).toLowerCase();
+function relevance(i,ch){
+  if(!ch){const own=i.challenge&&CH[i.challenge];return own?relevance(i,own):35}
+  const t=text(i),hits=ch.keywords.filter(k=>t.includes(k)).length;
+  let r=hits/ch.keywords.length*100; if(i.challenge===ch.id) r=r*.7+30;
+  return Math.min(100,Math.round(r));
+}
+const rawEng=x=>x.likes+3*x.comments.length+2*x.shares;
+function engagement(i,pool){const m=Math.max(1,...pool.map(rawEng));return Math.round(rawEng(i)/m*100)}
+function quality(i){const w=i.body.join(' ').split(/\s+/).length;return Math.min(100,Math.round(Math.min(45,w/4)+Math.min(30,i.docs.length*13)+STATUSES.indexOf(i.status)*6))}
+function scoreAll(chId){
+  const ch=CH[chId]||null, w=S.rank.w, tw=(w.rel+w.eng+w.q)||1;
+  let pool=ch?IDEAS.filter(i=>i.challenge===chId||relevance(i,ch)>=45):IDEAS.slice();
+  return pool.map(i=>{const rel=relevance(i,ch),eng=engagement(i,IDEAS),q=quality(i);
+    return {i,rel,eng,q,total:Math.round((w.rel*rel+w.eng*eng+w.q*q)/tw),outside:ch&&i.challenge!==chId}}).sort((a,b)=>b.total-a.total);
+}
+
+/* ---------- render ---------- */
+function render(){
+  const root=$('#root');
+  root.innerHTML=S.authed?shell():vLogin();
+  if(S.scrollTo){const el=document.getElementById(S.scrollTo);if(el)el.scrollIntoView({block:'start'});S.scrollTo=null}
+  const m=$('.msgs'); if(m) m.scrollTop=m.scrollHeight;
+}
+function go(r,id){S.stack.push(S.route);S.route={name:r,id};S.searchOpen=false;if(r==='activity'){NOTES.forEach(n=>{n.fresh=n.unread;n.unread=false})}if(r==='profile')S.ptab='ideas';if(r!=='chat')S.chatOpen=null;closeModal(true);render();if(!S.scrollTo)window.scrollTo(0,0)}
+function back(){S.route=S.stack.pop()||{name:'home'};render()}
+const unread=()=>NOTES.filter(n=>n.unread).length;
+
+function shell(){
+  return `<div class="app">${sidebar()}<header class="top">${topbar()}</header><main class="main" id="main">${view()}</main>${dock()}</div>`;
+}
+function activeKey(){const r=S.route.name;if(r==='idea')return'home';if(r==='challenge')return'challenges';if(r==='profile')return S.route.id==='me'?'me':'members';return r}
+function sidebar(){
+  const k=activeKey(),n=unread(),me=ME();
+  const item=(r,l,ic,badge)=>`<button class="nav ${k===r?'on':''}" data-a="go" data-r="${r}">${icon(ic)}${l}${badge?`<span class="count">${badge}</span>`:''}</button>`;
+  return `<nav class="side" aria-label="Main">
+   <div class="brand"><span class="mark">ZB</span>Idea Manager</div>
+   ${item('home','Home','home')}${item('challenges','Challenges','flag')}${item('chat','Chat','chat')}${item('activity','Activity','bell',n)}${item('members','Members','users')}
+   <button class="btn primary block" data-a="new">${icon('plus',18)} New idea</button>
+   ${me.isAdmin?`<div class="side-label">Executive</div>${item('insights','Insights','chart')}${item('ranking','AI ranking','spark')}${item('users','All users','user')}${item('emails','Email log','mail')}`:''}
+   <div class="side-foot"><button class="me-row" data-a="go" data-r="profile" data-id="me">${av(me,36)}<span class="min0"><b class="trunc" style="display:block">${esc(me.name)}</b><small>${me.isAdmin?'Executive admin':'Employee'}</small></span></button>
+   <button class="nav" data-a="switchRole">${icon('swap',18)} Switch to ${me.isAdmin?'employee':'admin'} view</button>
+   <button class="nav" data-a="signout">${icon('logout',18)} Sign out</button></div>
+  </nav>`;
+}
+function topbar(){
+  const r=S.route.name,names={home:'Ideas',challenges:'Challenges',challenge:'Challenge',chat:'Chat',activity:'Activity',members:'Members',profile:'Profile',idea:'Idea',insights:'Insights',ranking:'AI ranking',users:'All users',emails:'Email log'};
+  const left=r==='home'?`<button class="iconbtn" data-a="filter" aria-label="Filter ideas">${icon('filter',22)}</button>`:`<button class="iconbtn" data-a="back" aria-label="Back">${icon('back',22)}</button>`;
+  return `${left}<div class="top-mid"><span class="mark">ZB</span>${names[r]||'Ideas'}</div>
+   <div class="top-r"><button class="iconbtn" data-a="searchToggle" aria-label="Search">${icon('search',21)}</button><button class="iconbtn" data-a="sheet" aria-label="Your profile and menu">${av(ME(),30)}</button></div>`;
+}
+function dock(){
+  const k=activeKey(),n=unread();
+  const it=(r,l,ic,b)=>`<button class="dk ${k===r?'on':''}" data-a="go" data-r="${r}">${icon(ic,22,k===r&&ic!=='users'&&ic!=='chat')}${b?`<span class="count">${b}</span>`:''}<span>${l}</span></button>`;
+  return `<nav class="dock" aria-label="Main">${it('home','Home','home')}${it('chat','Chat','chat')}<button class="dk-plus" data-a="new" aria-label="Post a new idea">${icon('plus',24)}</button>${it('activity','Activity','bell',n)}${it('members','Members','users')}</nav>`;
+}
+function view(){
+  const r=S.route,admin=['insights','ranking','users','emails'];
+  if(admin.includes(r.name)&&!ME().isAdmin) return `<div class="col empty"><b>Executives only</b>This page is for executive admins. Switch to the admin view from the menu to try it.</div>`;
+  switch(r.name){
+    case 'home':return vHome();case 'idea':return vIdea(r.id);case 'profile':return vProfile(r.id);case 'members':return vMembers();
+    case 'chat':return vChat();case 'activity':return vActivity();case 'challenges':return vChallenges();case 'challenge':return vChallenge(r.id);
+    case 'insights':return vInsights();case 'ranking':return vRanking();case 'users':return vUsers();case 'emails':return vEmails();
+  }
+  return vHome();
+}
+
+/* ---------- home ---------- */
+const searchBox=id=>`<label class="search">${icon('search',17)}<span class="sr">Search</span><input id="${id}" type="search" placeholder="Search ideas or people" value="${esc(S.search)}" data-in="search" autocomplete="off"></label>`;
+function vHome(){
+  const fc=S.filter.statuses.length+(S.filter.challenge!=='all'?1:0);
+  const open=Object.values(CH).filter(c=>c.deadline>Date.now());
+  return `<div class="col">
+   <div class="page-h"><div><div class="eyebrow">ZB Group</div><h1 class="title">Ideas</h1></div>
+     <div class="h-tools desk">${searchBox('q')}<button class="btn sm" data-a="filter">${icon('filter',16)} Filter${fc?` (${fc})`:''}</button></div></div>
+   ${S.searchOpen?`<div style="margin:-8px 0 18px">${searchBox('qm')}</div>`:''}
+   <div class="strip-h"><span>Open executive challenges</span><button data-a="go" data-r="challenges">See all</button></div>
+   <div class="strip">${open.map(chCard).join('')}</div>
+   <div class="tabs" role="tablist">${[['foryou','Recommended for you'],['latest','Latest'],['discussed','Most discussed']].map(([v,l])=>`<button class="tab ${S.feedTab===v?'on':''}" role="tab" aria-selected="${S.feedTab===v}" data-a="tab" data-v="${v}">${l}</button>`).join('')}</div>
+   ${fc?`<div class="fchips">${S.filter.statuses.map(tag).join('')}${S.filter.challenge!=='all'?`<span class="chip">${icon('flag',13)}<span>${esc(CH[S.filter.challenge].title)}</span></span>`:''}<button class="chip ghost" data-a="fclear">${icon('x',13)} Clear</button></div>`:''}
+   <div id="feed">${feedList()}</div></div>`;
+}
+function chCard(c){const n=IDEAS.filter(i=>i.challenge===c.id).length,days=Math.max(0,Math.ceil((c.deadline-Date.now())/D));
+  return `<button class="ch-card" data-a="go" data-r="challenge" data-id="${c.id}"><span class="eyebrow" style="margin:0">${icon('flag',12)} Challenge</span><h3>${esc(c.title)}</h3><span class="ch-meta"><span>${plural(n,'idea')}</span><span>${days} days left</span></span></button>`}
+function whyFor(i){
+  const me=ME(),u=U[i.author];
+  if(i.challenge&&CH[i.challenge].deadline>Date.now()&&i.author!=='me') return 'Answers an open challenge';
+  if(u.dept===me.dept&&i.author!=='me') return 'Popular in '+u.dept;
+  if(Date.now()-i.created<7*D&&rawEng(i)>40) return 'Getting attention this week';
+  if(i.status==='Launched') return 'Launched across ZB';
+  return 'Popular across ZB';
+}
+function feedList(){
+  const q=S.search.trim().toLowerCase();
+  let list=IDEAS.filter(i=>{
+    if(S.filter.statuses.length&&!S.filter.statuses.includes(i.status))return false;
+    if(S.filter.challenge!=='all'&&i.challenge!==S.filter.challenge)return false;
+    if(q){const u=U[i.author];return (i.title+' '+i.summary+' '+u.name+' '+u.dept+' '+code(i)).toLowerCase().includes(q)}
+    return true;});
+  if(S.feedTab==='latest') list.sort((a,b)=>b.created-a.created);
+  else if(S.feedTab==='discussed') list.sort((a,b)=>b.comments.length-a.comments.length||b.likes-a.likes);
+  else list.sort((a,b)=>forYou(b)-forYou(a));
+  if(!list.length) return `<div class="empty"><b>No ideas match</b>Try another search or clear the filters.</div>`;
+  return list.map(i=>card(i,S.feedTab==='foryou'?whyFor(i):'')).join('');
+}
+function forYou(i){const me=ME();let s=rawEng(i);if(U[i.author].dept===me.dept)s+=15;if(i.challenge)s+=12;s-=(Date.now()-i.created)/D*.9;if(i.author==='me')s-=40;return s}
+function card(i,why){const u=U[i.author];
+  return `<article class="card" data-a="go" data-r="idea" data-id="${i.id}" tabindex="0">
+   ${why?`<div class="why">${icon('spark',13)} ${esc(why)}</div>`:''}
+   <div class="card-top"><div class="meta">${plink(u)}<span class="dot"></span><span class="trunc dept">${esc(u.dept)}</span><span class="dot"></span><span style="flex:none">${ago(i.created)}</span></div>${tag(i.status)}</div>
+   <h2 class="card-title">${esc(i.title)}</h2><p class="card-sum">${esc(i.summary)}</p>
+   <div class="card-foot">${i.challenge?`<span class="chip">${icon('flag',13)}<span>${esc(CH[i.challenge].title)}</span></span>`:''}${i.docs.length?`<span class="chip ghost">${icon('clip',13)} ${plural(i.docs.length,'document')}</span>`:''}${i.approved?`<span class="chip ok">${icon('check',13)} Approved</span>`:''}</div>
+   ${acts(i)}</article>`}
+function acts(i){
+  return `<div class="acts">
+   <button class="act ${i.liked?'liked':''}" data-a="like" data-id="${i.id}" aria-pressed="${i.liked}" aria-label="Like">${icon('heart',19,i.liked)}<span>${i.likes}</span></button>
+   <button class="act" data-a="go" data-r="idea" data-id="${i.id}" data-hash="comments" aria-label="Comments">${icon('comment',19)}<span>${i.comments.length}</span></button>
+   <button class="act" data-a="share" data-id="${i.id}" aria-label="Share">${icon('share',19)}<span>${i.shares}</span></button>
+   <button class="act push ${i.saved?'saved':''}" data-a="save" data-id="${i.id}" aria-pressed="${i.saved}">${icon('save',19,i.saved)}<span>${i.saved?'Saved':'Save'}</span></button></div>`}
+
+/* ---------- idea page ---------- */
+function vIdea(id){
+  const i=I(id); if(!i) return `<div class="col empty"><b>Idea not found</b></div>`;
+  const u=U[i.author],me=ME(),k=STATUSES.indexOf(i.status);
+  return `<div class="col">
+   <button class="back desk" data-a="back">${icon('back',18)} Back</button>
+   <div class="i-head">${tag(i.status)}<span class="code">${code(i)}</span>${i.approved?`<span class="chip ok">${icon('check',13)} Approved by ${esc(U[i.approvedBy].name)}</span>`:''}</div>
+   <h1 class="i-title">${esc(i.title)}</h1>
+   <p class="lede">${esc(i.summary)}</p>
+   <div class="author"><span class="plink" data-a="go" data-r="profile" data-id="${u.id}" role="link" tabindex="0">${av(u,44)}<span class="min0"><b>${esc(u.name)}</b><small>${esc(u.title)} · ${esc(u.dept)}</small></span></span><span class="grow"></span><span class="hint" style="flex:none">${fmt(i.created)}</span></div>
+   <div class="life" aria-label="Stage ${k+1} of 5: ${i.status}">${STATUSES.map((s,n)=>`<div class="${n<=k?'done':''} ${n===k?'cur':''}"><span></span><small>${s}</small></div>`).join('')}</div>
+   ${i.challenge?`<button class="ch-banner" data-a="go" data-r="challenge" data-id="${i.challenge}">${icon('flag',20)}<span><small>Response to executive challenge</small><b>${esc(CH[i.challenge].title)}</b></span></button>`:''}
+   <div class="prose">${i.body.map(p=>`<p>${esc(p)}</p>`).join('')}</div>
+   <h3 class="section-h">Supporting documents</h3>
+   ${i.docs.length?`<div class="docs">${i.docs.map((d,n)=>`<button class="doc" data-a="doc" data-id="${i.id}" data-idx="${n}">${ext(d.n)}<span class="min0 grow"><b class="trunc">${esc(d.n)}</b><small class="muted">${esc(d.s)}</small></span>${icon('file',18)}</button>`).join('')}</div>`:`<p class="hint">No documents attached yet.</p>`}
+   <div class="big-acts">${acts(i)}</div>
+   ${me.isAdmin?execPanel(i):''}
+   <h3 class="section-h" id="comments">Comments (${i.comments.length})</h3>
+   <form class="composer" data-f="comment" data-id="${i.id}">${av(me,36)}<div class="grow"><label class="sr" for="cm-${i.id}">Comment</label><textarea class="inp" id="cm-${i.id}" name="t" rows="2" placeholder="Add a comment or a question" required></textarea><div class="right"><button class="btn primary sm">Comment</button></div></div></form>
+   ${i.comments.map(c=>{const cu=U[c.u];return `<div class="cm">${av(cu,36)}<div class="min0"><div class="meta">${plink(cu,0).replace(/<span class="av"[^>]*>.*?<\/span>/,'')}${cu.isAdmin?'<span class="chip exec">Exec</span>':''}<span class="dot"></span><span>${ago(c.at)}</span></div><p>${esc(c.t)}</p></div></div>`}).join('')}
+  </div>`;
+}
+function execPanel(i){
+  const s=scoreAll(i.challenge||'all').find(x=>x.i.id===i.id)||{rel:relevance(i,null),eng:engagement(i,IDEAS),q:quality(i),total:0};
+  return `<section class="exec" aria-label="Executive review"><div class="exec-top"><div><div class="eyebrow">${icon('shield',13)} Executive review</div><div class="score">${s.total}<small>/100 AI score</small></div></div>
+   ${i.approved?`<span class="chip ok">${icon('check',13)} Approved ${ago(i.approvedAt)}</span>`:`<button class="btn primary sm" data-a="approve" data-id="${i.id}">${icon('check',15)} Approve idea</button>`}</div>
+   <div class="bars" style="margin-top:14px">${mb('Fits what we asked',s.rel)}${mb('Likes and comments',s.eng)}${mb('Idea quality',s.q)}</div>
+   <div class="exec-row"><label class="lbl" for="st-${i.id}">Stage</label><select class="inp" id="st-${i.id}" data-in="status" data-id="${i.id}">${STATUSES.map(x=>`<option ${x===i.status?'selected':''}>${x}</option>`).join('')}</select><button class="btn sm" data-a="startChat" data-id="${i.author}">${icon('chat',15)} Message ${esc(first(U[i.author]))}</button></div></section>`;
+}
+const mb=(l,v)=>`<div class="mb"><small><span>${l}</span><b>${v}</b></small><div class="track"><div class="fill" style="width:${v}%"></div></div></div>`;
+
+/* ---------- profile ---------- */
+function vProfile(id){
+  const u=U[id]; if(!u) return `<div class="col empty"><b>Member not found</b></div>`;
+  const mine=id==='me', ideas=IDEAS.filter(i=>i.author===id).sort((a,b)=>b.created-a.created);
+  const likes=ideas.reduce((s,i)=>s+i.likes,0), appr=ideas.filter(i=>i.approved).length;
+  const tab=mine?S.ptab:'ideas', list=tab==='saved'?IDEAS.filter(i=>i.saved):ideas;
+  return `<div class="col">
+   ${!mine?`<button class="back desk" data-a="back">${icon('back',18)} Back</button>`:''}
+   <div class="banner"></div>
+   <div class="p-head"><div class="p-av">${av(u,92)}${mine?`<label class="cam" title="Change photo">${icon('camera',15)}<input class="sr" type="file" accept="image/*" data-in="photo" id="ph-main"></label>`:''}</div>
+    <div class="p-btns">${mine?`<button class="btn sm" data-a="editProfile">${icon('edit',15)} Edit profile</button>`:`<button class="btn primary sm" data-a="startChat" data-id="${u.id}">${icon('chat',15)} Message</button>`}</div></div>
+   <h1 class="p-name">${esc(u.name)} ${u.isAdmin?'<span class="chip exec">Executive</span>':''}</h1>
+   <div class="p-sub">${esc(u.title)} · ${esc(u.dept)}</div>
+   <div class="code" style="margin-top:4px">${esc(u.email)} · <span class="ver">${icon('check',13)} Verified ZB staff</span></div>
+   ${u.bio?`<p class="p-bio">${esc(u.bio)}</p>`:''}
+   <div class="p-stats"><span><b>${ideas.length}</b>ideas</span><span><b>${likes}</b>likes received</span><span><b>${appr}</b>approved</span><span>At ZB since ${esc(u.joined)}</span></div>
+   <div class="tabs"><button class="tab ${tab==='ideas'?'on':''}" data-a="ptab" data-v="ideas">${mine?'My ideas':'Ideas'} (${ideas.length})</button>${mine?`<button class="tab ${tab==='saved'?'on':''}" data-a="ptab" data-v="saved">Saved (${IDEAS.filter(i=>i.saved).length})</button>`:''}</div>
+   ${list.length?list.map(i=>card(i)).join(''):`<div class="empty"><b>${tab==='saved'?'Nothing saved yet':'No ideas yet'}</b>${tab==='saved'?'Tap Save on any idea to keep it here.':mine?'Post your first idea with the + button.':''}</div>`}
+  </div>`;
+}
+
+/* ---------- members ---------- */
+function vMembers(){
+  return `<div class="wide"><div class="page-h"><div><div class="eyebrow">Verified ZB staff</div><h1 class="title">Members</h1><p class="sub muted">Everyone here is a verified ZB employee. Open a profile to see their ideas.</p></div></div>
+   <div style="max-width:420px">${`<label class="search">${icon('search',17)}<span class="sr">Search members</span><input id="mq" type="search" placeholder="Search by name, role or department" value="${esc(S.memberQ)}" data-in="mq"></label>`}</div>
+   <div class="mgrid" id="mgrid">${memberCards()}</div></div>`;
+}
+function memberCards(){
+  const q=S.memberQ.toLowerCase();
+  const list=Object.values(U).filter(u=>(u.name+u.title+u.dept).toLowerCase().includes(q));
+  if(!list.length) return `<div class="empty" style="grid-column:1/-1"><b>No members match</b></div>`;
+  return list.map(u=>{const n=IDEAS.filter(i=>i.author===u.id).length;return `<button class="mcard" data-a="go" data-r="profile" data-id="${u.id}">${av(u,48)}<span class="min0"><b class="trunc">${esc(u.name)}${u.id==='me'?' (you)':''}</b><small class="trunc">${esc(u.title)}</small><small class="trunc">${esc(u.dept)} · ${plural(n,'idea')}</small></span></button>`}).join('');
+}
+
+/* ---------- chat ---------- */
+function vChat(){
+  const convs=CONVS.slice().sort((a,b)=>b.msgs[b.msgs.length-1].at-a.msgs[a.msgs.length-1].at), c=CONVS.find(x=>x.id===S.chatOpen);
+  return `<div class="wide"><div class="page-h"><h1 class="title">Chat</h1><button class="btn sm" data-a="newChat">${icon('plus',16)} New chat</button></div>
+   <div class="chat ${c?'open':''}">
+    <div class="clist">${convs.map(k=>{const u=U[k.with],l=k.msgs[k.msgs.length-1];return `<button class="citem ${S.chatOpen===k.id?'on':''}" data-a="openChat" data-id="${k.id}">${av(u,42)}<span class="grow"><span class="row"><b class="trunc">${esc(u.name)}</b><small>${ago(l.at)}</small></span><span class="trunc">${l.from==='me'?'You: ':''}${esc(l.t)}</span></span></button>`}).join('')}</div>
+    <section class="thread">${c?thread(c):`<div class="empty" style="margin:auto"><b>Pick a conversation</b>Or start a new chat with any member.</div>`}</section>
+   </div></div>`;
+}
+function thread(c){const u=U[c.with];
+  return `<div class="th-head"><button class="iconbtn mob-only" data-a="closeChat" aria-label="Back to chats">${icon('back',20)}</button><span class="plink" data-a="go" data-r="profile" data-id="${u.id}" role="link" tabindex="0">${av(u,36)}<span class="min0"><b>${esc(u.name)}</b><small>${esc(u.title)}</small></span></span></div>
+   <div class="msgs">${c.msgs.map(m=>`<div class="bub ${m.from==='me'?'me':''}">${esc(m.t)}<small>${ago(m.at)}</small></div>`).join('')}</div>
+   <form class="th-form" data-f="chat" data-id="${c.id}"><label class="sr" for="msg-${c.id}">Message</label><input class="inp" id="msg-${c.id}" name="t" placeholder="Write a message" autocomplete="off" required><button class="btn primary" aria-label="Send">${icon('send',17)}</button></form>`}
+
+/* ---------- activity ---------- */
+function vActivity(){
+  const list=NOTES.slice().sort((a,b)=>b.at-a.at);
+  return `<div class="col"><div class="page-h"><div><h1 class="title">Activity</h1><p class="sub muted">Likes, comments, approvals and new challenges.</p></div></div>
+   ${list.length?list.map(note).join(''):`<div class="empty"><b>Nothing yet</b></div>`}</div>`;
+}
+function note(n){
+  const f=U[n.from],i=n.idea&&I(n.idea);
+  const ic={like:['heart','like'],comment:['comment',''],approval:['check','hot'],challenge:['flag','']}[n.type];
+  let txt='';
+  if(n.type==='like') txt=`<b>${esc(f.name)}</b> liked your idea <b>${esc(i.title)}</b>`;
+  if(n.type==='comment') txt=`<b>${esc(f.name)}</b> commented on <b>${esc(i.title)}</b>`;
+  if(n.type==='challenge') txt=`<b>${esc(f.name)}</b> posted a new challenge: <b>${esc(CH[n.challenge].title)}</b>`;
+  if(n.type==='approval') txt=`<b>${esc(f.name)}</b> approved your idea <b>${esc(i.title)}</b>. We emailed you as well.`;
+  const target=n.type==='challenge'?`data-r="challenge" data-id="${n.challenge}"`:`data-r="idea" data-id="${n.idea}"`;
+  let extra='';
+  if(n.type==='approval'){
+    extra=`<div class="mailcard"><div class="mail-h">${icon('mail',14)} To ${esc(ME().email)} · from ${esc(f.email)}</div><div class="subj">Your idea ${code(i)} has been approved</div><div class="body">${esc(n.note||'No note added.')}</div>
+     ${n.reply?`<div class="replied">${icon('check',15)} You replied: ${esc(n.reply)}</div>`:`<form class="reply" data-f="reply" data-id="${n.id}"><label class="sr" for="rp-${n.id}">Reply</label><input class="inp" id="rp-${n.id}" name="t" placeholder="Reply to ${esc(first(f))}" required><button class="btn primary">Reply</button></form>`}</div>`;
+  }
+  return `<div class="note"><span class="n-ic ${ic[1]} ${n.fresh?'unread':''}">${icon(ic[0],18,n.type==='like')}</span><div class="grow"><button data-a="go" ${target} style="text-align:left"><p>${txt}</p></button><div class="when">${ago(n.at)}</div>${extra}</div></div>`;
+}
+
+/* ---------- challenges ---------- */
+function vChallenges(){
+  const me=ME(),list=Object.values(CH).sort((a,b)=>b.posted-a.posted);
+  return `<div class="col"><div class="page-h"><div><div class="eyebrow">Set by executives</div><h1 class="title">Challenges</h1><p class="sub muted">Executives post the problems they want solved. Answer one by posting an idea under it.</p></div>
+   ${me.isAdmin?`<button class="btn primary sm" data-a="newChallenge">${icon('plus',16)} New challenge</button>`:''}</div>
+   <div class="chl">${list.map(chBlock).join('')}</div></div>`;
+}
+function chBlock(c){
+  const n=IDEAS.filter(i=>i.challenge===c.id).length,days=Math.max(0,Math.ceil((c.deadline-Date.now())/D));
+  return `<article class="chx"><div class="row"><span class="eyebrow" style="margin:0">${icon('flag',12)} Challenge</span><span class="grow"></span><span class="closes">Closes <b>${fmtShort(c.deadline)}</b> · ${days} days left</span></div>
+   <h2>${esc(c.title)}</h2><p class="muted">${esc(c.brief)}</p>
+   <div class="row">${c.keywords.map(k=>`<span class="kw">${esc(k)}</span>`).join('')}</div>
+   <div class="row" style="margin-top:4px"><span class="meta">${plink(U[c.by],24)}<span class="dot"></span>${plural(n,'idea')}</span><span class="grow"></span><button class="btn sm" data-a="go" data-r="challenge" data-id="${c.id}">View ideas</button><button class="btn primary sm" data-a="new" data-id="${c.id}">${icon('plus',15)} Submit idea</button></div></article>`;
+}
+function vChallenge(id){
+  const c=CH[id]; if(!c) return `<div class="col empty"><b>Challenge not found</b></div>`;
+  const list=scoreAll(id).filter(x=>x.i.challenge===id).map(x=>x.i);
+  return `<div class="col"><button class="back desk" data-a="back">${icon('back',18)} Back</button>${chBlock(c)}
+   <h3 class="section-h">Ideas submitted (${list.length})</h3>${list.length?list.map(i=>card(i)).join(''):`<div class="empty"><b>No ideas yet</b>Be the first to answer this challenge.</div>`}</div>`;
+}
+
+/* ---------- executive: insights ---------- */
+function vInsights(){
+  const tot=IDEAS.length,last30=IDEAS.filter(i=>Date.now()-i.created<30*D).length,authors=new Set(IDEAS.map(i=>i.author)).size,appr=IDEAS.filter(i=>i.approved).length,cms=IDEAS.reduce((s,i)=>s+i.comments.length,0),likes=IDEAS.reduce((s,i)=>s+i.likes,0);
+  const byDept={};IDEAS.forEach(i=>{const d=U[i.author].dept;byDept[d]=(byDept[d]||0)+1});
+  const depts=Object.entries(byDept).sort((a,b)=>b[1]-a[1]),dm=Math.max(...depts.map(d=>d[1]));
+  const st=STATUSES.map(s=>[s,IDEAS.filter(i=>i.status===s).length]);
+  const sc={Idea:'#b9c6bf',Prototype:'#d99a2b',Demo:'#3d74c0',Pilot:'#7a5bbd',Launched:'#0d4a36'};
+  const people=Object.values(U).map(u=>{const m=IDEAS.filter(i=>i.author===u.id);return {u,n:m.length,l:m.reduce((s,i)=>s+i.likes,0)}}).filter(x=>x.n).sort((a,b)=>b.n-a.n||b.l-a.l).slice(0,5);
+  const chs=Object.values(CH).map(c=>[c,IDEAS.filter(i=>i.challenge===c.id).length]),cm=Math.max(1,...chs.map(c=>c[1]));
+  return `<div class="wide"><div class="page-h"><div><div class="eyebrow">${icon('chart',13)} Executive</div><h1 class="title">Insights</h1><p class="sub muted">How the idea programme is doing across ZB Group. <span class="sample">Sample data</span></p></div>
+   <button class="btn primary sm" data-a="go" data-r="ranking">${icon('spark',15)} Open AI ranking</button></div>
+   <div class="kpis"><div class="kpi lead"><div class="n">${tot}</div><div class="l">ideas posted</div></div><div class="kpi"><div class="n">${last30}</div><div class="l">posted in the last 30 days</div></div><div class="kpi"><div class="n">${authors}</div><div class="l">employees contributing</div></div><div class="kpi"><div class="n">${appr}</div><div class="l">approved by executives</div></div><div class="kpi"><div class="n">${(((likes+cms)/tot)||0).toFixed(1)}</div><div class="l">likes and comments per idea</div></div></div>
+   <div class="panels">
+    <div class="panel"><h3>Ideas by department</h3>${depts.map(([d,n])=>`<div class="hb"><span class="trunc">${esc(d)}</span><span class="track"><span class="fill" style="display:block;width:${n/dm*100}%"></span></span><span class="v">${n}</span></div>`).join('')}</div>
+    <div class="panel"><h3>Where ideas are in the pipeline</h3><div class="pipe">${st.filter(s=>s[1]).map(([s,n])=>`<span style="width:${n/tot*100}%;background:${sc[s]}" title="${s}: ${n}"></span>`).join('')}</div><div class="legend">${st.map(([s,n])=>`<div><span style="width:10px;height:10px;border-radius:3px;background:${sc[s]};flex:none"></span>${s}<b>${n}</b></div>`).join('')}</div></div>
+    <div class="panel"><h3>Challenge response</h3>${chs.map(([c,n])=>`<div class="hb"><span class="trunc" title="${esc(c.title)}">${esc(c.title)}</span><span class="track"><span class="fill" style="display:block;width:${n/cm*100}%"></span></span><span class="v">${n}</span></div>`).join('')}<p class="hint" style="margin-top:8px">Ideas submitted under each open challenge.</p></div>
+    <div class="panel"><h3>Top contributors</h3><ul class="lc">${people.map(p=>`<li>${plink(p.u,28)}<span class="num">${plural(p.n,'idea')} · ${p.l} likes</span></li>`).join('')}</ul></div>
+   </div></div>`;
+}
+
+/* ---------- executive: AI ranking ---------- */
+function vRanking(){
+  const w=S.rank.w;
+  const sl=(k,l)=>`<div class="wt"><label for="w-${k}"><span>${l}</span><output id="o-${k}">${w[k]}</output></label><input id="w-${k}" type="range" min="0" max="100" step="5" value="${w[k]}" data-in="w" data-k="${k}"></div>`;
+  return `<div class="wide"><div class="page-h"><div><div class="eyebrow">${icon('spark',13)} ZB Idea Ranker</div><h1 class="title">AI ranking</h1><p class="sub muted">Every idea is scored on how well it fits what you asked for, how colleagues responded, and the quality of the idea itself. The top five come first.</p></div>
+   <button class="btn primary sm" data-a="digest">${icon('mail',15)} Email me the top 5</button></div>
+   <div class="rank-ctl"><div class="field"><label for="rk-ch">Rank against</label><select class="inp" id="rk-ch" data-in="rankCh"><option value="all" ${S.rank.ch==='all'?'selected':''}>All ideas</option>${Object.values(CH).map(c=>`<option value="${c.id}" ${S.rank.ch===c.id?'selected':''}>${esc(c.title)}</option>`).join('')}</select></div>
+    <div class="weights">${sl('rel','Fits what we asked')}${sl('eng','Likes and comments')}${sl('q','Idea quality')}</div></div>
+   <p class="sim">${icon('shield',14)} Prototype: a weighted formula stands in for the trained model, so you can see how ranking will behave.</p>
+   <div id="rank-list">${rankList()}</div></div>`;
+}
+function rankList(){
+  const list=scoreAll(S.rank.ch);
+  if(!list.length) return `<div class="empty"><b>No ideas to rank yet</b></div>`;
+  const row=(x,n,top)=>{const u=U[x.i.author];return `<div class="rk ${top?'top':''}"><div class="rk-n">${n}</div><div class="min0"><div class="meta">${plink(u,24)}<span class="dot"></span><span class="trunc">${esc(u.dept)}</span>${tag(x.i.status)}</div>
+   <button class="rk-title" data-a="go" data-r="idea" data-id="${x.i.id}">${esc(x.i.title)}</button>
+   <div class="bars">${mb('Fits what we asked',x.rel)}${mb('Likes and comments',x.eng)}${mb('Idea quality',x.q)}</div>${x.outside?`<div style="margin-top:10px"><span class="chip ghost">Matched from outside this challenge</span></div>`:''}</div>
+   <div class="rk-side"><div class="score">${x.total}<small>/100</small></div>${x.i.approved?`<span class="chip ok">${icon('check',13)} Approved</span>`:`<button class="btn primary sm" data-a="approve" data-id="${x.i.id}">${icon('check',15)} Approve</button>`}</div></div>`};
+  return `<div class="rkl">${list.slice(0,5).map((x,n)=>row(x,n+1,true)).join('')}</div>${list.length>5?`<h3 class="section-h">Also ranked</h3><div class="rkl">${list.slice(5).map((x,n)=>row(x,n+6,false)).join('')}</div>`:''}`;
+}
+
+/* ---------- executive: users ---------- */
+function vUsers(){
+  return `<div class="wide"><div class="page-h"><div><div class="eyebrow">${icon('user',13)} Executive</div><h1 class="title">All users</h1><p class="sub muted">Every verified employee on the platform. Select a row to open the profile.</p></div></div>
+   <div style="max-width:420px;margin-bottom:14px"><label class="search">${icon('search',17)}<span class="sr">Search users</span><input id="uq" type="search" placeholder="Search users" value="${esc(S.userQ)}" data-in="uq"></label></div>
+   <div class="tbl"><table><thead><tr><th>Member</th><th>Email</th><th>Department</th><th class="n">Ideas</th><th class="n">Likes</th><th class="n">Approved</th><th>Status</th></tr></thead><tbody id="ubody">${userRows()}</tbody></table></div></div>`;
+}
+function userRows(){
+  const q=S.userQ.toLowerCase();
+  return Object.values(U).filter(u=>(u.name+u.email+u.dept+u.title).toLowerCase().includes(q)).map(u=>{const m=IDEAS.filter(i=>i.author===u.id);
+   return `<tr data-a="go" data-r="profile" data-id="${u.id}"><td><span class="meta">${av(u,30)}<span class="min0"><b style="display:block;color:var(--ink)">${esc(u.name)}</b><span>${esc(u.title)}</span></span></span></td><td class="code">${esc(u.email)}</td><td>${esc(u.dept)}</td><td class="n">${m.length}</td><td class="n">${m.reduce((s,i)=>s+i.likes,0)}</td><td class="n">${m.filter(i=>i.approved).length}</td><td><span class="ver">${icon('check',13)} Verified${u.isAdmin?' · Admin':''}</span></td></tr>`}).join('')||`<tr><td colspan="7" class="muted">No users match.</td></tr>`;
+}
+
+/* ---------- executive: email log ---------- */
+function vEmails(){
+  return `<div class="col"><div class="page-h"><div><div class="eyebrow">${icon('mail',13)} Executive</div><h1 class="title">Email log</h1><p class="sub muted">Approval alerts, top-5 digests and replies the platform has sent. In this prototype, emails are shown here and nothing leaves the page.</p></div></div>
+   ${EMAILS.length?EMAILS.map(e=>`<div class="mail"><button class="mail-row" data-a="mail" data-id="${e.id}" aria-expanded="${S.openMail===e.id}"><span class="mtype ${e.type}">${e.type}</span><span class="min0"><b class="trunc">${esc(e.subject)}</b><small class="trunc" style="display:block">To ${esc(e.to)}</small></span><small>${ago(e.at)}</small></button>${S.openMail===e.id?`<div class="mail-body"><div class="hdr">From ${esc(e.from)}<br>To ${esc(e.to)}<br>${fmt(e.at)}</div>${esc(e.body)}</div>`:''}</div>`).join(''):`<div class="empty"><b>No emails yet</b>Approve an idea or send yourself the top 5 from AI ranking.</div>`}</div>`;
+}
+
+/* ---------- login ---------- */
+function vLogin(){
+  return `<div class="login"><section class="login-art">
+   <div class="brand" style="padding:0"><span class="mark">ZB</span>Idea Manager</div>
+   <div><h1 class="hero">Good ideas should reach the people who decide.</h1><p class="hero-sub">Post your idea, answer challenges set by executives, and follow it from first sketch to launch.</p></div>
+   <div><div class="ladder">${STATUSES.map((s,n)=>`<span class="lad" style="--n:${n}">${s}</span>`).join('')}</div><p class="fine" style="margin-top:28px">${icon('shield',14)} For verified ZB Group employees only.</p></div>
+  </section><section class="login-form"><div class="lf">${S.step==='creds'?`
+   <h2 class="lf-h">Sign in</h2><p class="muted" style="margin-bottom:22px">Use your ZB work account.</p>
+   <form class="stack" data-f="login" novalidate>
+    <div class="field"><label for="lg-email">Work email</label><input class="inp" id="lg-email" name="email" type="email" value="${esc(S.email)}" autocomplete="username"></div>
+    <div class="field"><label for="lg-pw">Password</label><input class="inp" id="lg-pw" name="pw" type="password" value="demo-password" autocomplete="current-password"></div>
+    <div class="field"><span class="lbl">Sign in as (prototype only)</span><div class="seg"><button type="button" class="${S.role==='employee'?'on':''}" data-a="role" data-v="employee">Employee</button><button type="button" class="${S.role==='admin'?'on':''}" data-a="role" data-v="admin">Executive admin</button></div></div>
+    ${S.err?`<p class="err" role="alert">${esc(S.err)}</p>`:''}
+    <button class="btn primary block lg">Continue with ZB account</button></form>
+   <p class="note-s">${icon('shield',14)} Only addresses ending in @zb.co.zw can sign in.</p>`:`
+   <button class="back" data-a="loginBack">${icon('back',18)} Change email</button>
+   <h2 class="lf-h">Check your email</h2><p class="muted" style="margin-bottom:22px">We sent a 6-digit code to <b style="color:var(--ink)">${esc(S.email)}</b> to confirm you work at ZB.</p>
+   <form class="stack" data-f="verify" novalidate><div class="field"><label for="lg-code">Verification code</label><input class="inp code-inp" id="lg-code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></div>
+    <p class="hint">Prototype: any 6 digits work.</p>${S.err?`<p class="err" role="alert">${esc(S.err)}</p>`:''}
+    <button class="btn primary block lg">Verify and continue</button></form>`}
+  </div></section></div>`;
+}
+
+/* ---------- modals ---------- */
+function openModal(m){S.modal=m;renderModal();setTimeout(()=>{const f=$('#modal-root [autofocus]');if(f)f.focus()},30)}
+function closeModal(silent){S.modal=null;if(!silent||$('#modal-root').innerHTML)renderModal()}
+function renderModal(){
+  const mr=$('#modal-root');document.body.style.overflow=S.modal?'hidden':'';
+  if(!S.modal){mr.innerHTML='';return}
+  const m=S.modal,me=ME();let h='',b='';
+  const x=`<button class="iconbtn" data-a="close" aria-label="Close">${icon('x',20)}</button>`;
+  if(m.type==='newIdea'){
+    h='Share an idea';
+    b=`<form class="stack" data-f="newIdea" novalidate>
+     <div class="field"><label for="ni-t">Title</label><input class="inp" id="ni-t" name="title" maxlength="90" placeholder="A short, specific name for your idea" autofocus required></div>
+     <div class="two"><div class="field"><label for="ni-s">Stage</label><select class="inp" id="ni-s" name="status">${STATUSES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+      <div class="field"><label for="ni-c">Challenge</label><select class="inp" id="ni-c" name="challenge"><option value="">Not linked to a challenge</option>${Object.values(CH).map(c=>`<option value="${c.id}" ${m.challenge===c.id?'selected':''}>${esc(c.title)}</option>`).join('')}</select></div></div>
+     <div class="field"><label for="ni-sum">Summary</label><textarea class="inp" id="ni-sum" name="summary" rows="2" maxlength="240" placeholder="Two sentences. What is the idea and who does it help?"></textarea></div>
+     <div class="field"><label for="ni-b">Full description</label><textarea class="inp" id="ni-b" name="body" rows="7" placeholder="The problem, how your idea works, what you have tested, and what you need. Leave a blank line between paragraphs."></textarea></div>
+     <div class="field"><span class="lbl">Supporting documents</span><label class="drop" for="ni-f">${icon('clip',18)} Attach PDFs, spreadsheets or slides<input class="sr" type="file" id="ni-f" multiple data-in="docs"></label><div class="dlist" id="draft-docs">${draftDocs()}</div></div>
+     <p class="err" id="ni-err" role="alert"></p>
+     <div class="sheet-f"><button type="button" class="btn" data-a="close">Cancel</button><button class="btn primary">Post idea</button></div></form>`;
+  }
+  if(m.type==='filter'){
+    h='Filter ideas';
+    b=`<div class="stack"><div class="field"><span class="lbl">Stage</span><div class="schips">${STATUSES.map(s=>`<button class="schip ${S.filter.statuses.includes(s)?'on':''}" data-a="fstatus" data-v="${s}" aria-pressed="${S.filter.statuses.includes(s)}">${s}</button>`).join('')}</div></div>
+     <div class="field"><label for="f-ch">Challenge</label><select class="inp" id="f-ch" data-in="fch"><option value="all">All ideas</option>${Object.values(CH).map(c=>`<option value="${c.id}" ${S.filter.challenge===c.id?'selected':''}>${esc(c.title)}</option>`).join('')}</select></div>
+     <div class="sheet-f"><button class="btn" data-a="fclear">Clear</button><button class="btn primary" data-a="fapply">Show ideas</button></div></div>`;
+  }
+  if(m.type==='approve'){
+    const i=I(m.id),u=U[i.author];h='Approve this idea';
+    b=`<form class="stack" data-f="approve" data-id="${i.id}"><div class="ch-banner" style="margin:0">${icon('spark',20)}<span><small>${code(i)}</small><b>${esc(i.title)}</b></span></div>
+     <p class="muted">${esc(u.name)} will get an email at <span class="code">${esc(u.email)}</span> straight away, and can reply to you.</p>
+     <div class="field"><label for="ap-n">Note to ${esc(first(u))} (optional)</label><textarea class="inp" id="ap-n" name="note" rows="3" placeholder="What happens next, who to talk to" autofocus></textarea></div>
+     <div class="sheet-f"><button type="button" class="btn" data-a="close">Cancel</button><button class="btn primary">${icon('check',16)} Approve and email</button></div></form>`;
+  }
+  if(m.type==='doc'){
+    const i=I(m.id),d=i.docs[m.idx];h='Document';
+    b=`<div class="stack"><div style="display:flex;gap:14px;align-items:center">${ext(d.n)}<div class="min0"><b class="trunc" style="display:block">${esc(d.n)}</b><span class="hint">${esc(d.s)} · attached to ${code(i)} by ${esc(U[i.author].name)}</span></div></div>
+     <p class="muted">The document viewer opens here in the full build. This prototype keeps file names only, not file contents.</p><div class="sheet-f"><button class="btn primary" data-a="close">Done</button></div></div>`;
+  }
+  if(m.type==='edit'){
+    h='Edit profile';
+    b=`<form class="stack" data-f="edit"><div style="display:flex;align-items:center;gap:14px">${av(me,64)}<label class="btn sm" for="ed-ph">${icon('camera',15)} Change photo<input class="sr" type="file" id="ed-ph" accept="image/*" data-in="photo"></label></div>
+     <div class="field"><label for="ed-n">Full name</label><input class="inp" id="ed-n" name="name" value="${esc(me.name)}" required></div>
+     <div class="two"><div class="field"><label for="ed-t">Job title</label><input class="inp" id="ed-t" name="title" value="${esc(me.title)}"></div><div class="field"><label for="ed-d">Department</label><input class="inp" id="ed-d" name="dept" value="${esc(me.dept)}"></div></div>
+     <div class="field"><label for="ed-b">What you do at ZB</label><textarea class="inp" id="ed-b" name="bio" rows="3">${esc(me.bio)}</textarea></div>
+     <div class="sheet-f"><button type="button" class="btn" data-a="close">Cancel</button><button class="btn primary">Save profile</button></div></form>`;
+  }
+  if(m.type==='newChallenge'){
+    h='Post a challenge';
+    const dd=new Date(Date.now()+30*D).toISOString().slice(0,10);
+    b=`<form class="stack" data-f="newChallenge"><div class="field"><label for="nc-t">What do you want ideas for?</label><input class="inp" id="nc-t" name="title" placeholder="For example: Fewer failed mobile money transfers" autofocus required></div>
+     <div class="field"><label for="nc-b">Brief</label><textarea class="inp" id="nc-b" name="brief" rows="3" placeholder="The problem, why it matters now, and what a good answer looks like" required></textarea></div>
+     <div class="two"><div class="field"><label for="nc-k">Keywords for AI ranking</label><input class="inp" id="nc-k" name="kw" placeholder="transfer, mobile, failed"></div><div class="field"><label for="nc-d">Closes on</label><input class="inp" id="nc-d" name="deadline" type="date" value="${dd}"></div></div>
+     <p class="hint">Every verified employee sees the challenge on their home page and in Activity.</p>
+     <div class="sheet-f"><button type="button" class="btn" data-a="close">Cancel</button><button class="btn primary">Post challenge</button></div></form>`;
+  }
+  if(m.type==='newChat'){
+    h='New chat';
+    b=`<div class="menu">${Object.values(U).filter(u=>u.id!=='me').map(u=>`<button class="mcard" style="border:0" data-a="startChat" data-id="${u.id}">${av(u,40)}<span class="min0"><b>${esc(u.name)}</b><small>${esc(u.title)} · ${esc(u.dept)}</small></span></button>`).join('')}</div>`;
+  }
+  if(m.type==='sheet'){
+    h='Menu';
+    const lk=(r,l,ic,id)=>`<button class="nav" data-a="go" data-r="${r}" ${id?`data-id="${id}"`:''}>${icon(ic)}${l}</button>`;
+    b=`<div class="menu"><button class="me-row" data-a="go" data-r="profile" data-id="me">${av(me,44)}<span class="min0"><b style="display:block">${esc(me.name)}</b><small>${esc(me.email)}</small></span></button>
+     ${lk('profile','My profile','user','me')}${lk('challenges','Challenges','flag')}
+     ${me.isAdmin?`<div class="side-label">Executive</div>${lk('insights','Insights','chart')}${lk('ranking','AI ranking','spark')}${lk('users','All users','users')}${lk('emails','Email log','mail')}`:''}
+     <div class="side-label">Account</div><button class="nav" data-a="switchRole">${icon('swap')} Switch to ${me.isAdmin?'employee':'admin'} view (demo)</button><button class="nav" data-a="signout">${icon('logout')} Sign out</button></div>`;
+  }
+  mr.innerHTML=`<div class="scrim" data-a="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mh"><div class="sheet-h"><h2 id="mh">${h}</h2>${x}</div>${b}</div></div>`;
+}
+const draftDocs=()=>S.draftDocs.map((d,n)=>`<div>${icon('file',15)}<span class="trunc grow">${esc(d.n)}</span><span class="hint">${d.s}</span><button type="button" class="iconbtn" style="width:28px;height:28px" data-a="rmDoc" data-v="${n}" aria-label="Remove">${icon('x',14)}</button></div>`).join('');
+const size=b=>b>1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+
+let tt;
+function toast(t){$('#toast-root').innerHTML=`<div class="toast" role="status">${icon('check',17)}<span>${esc(t)}</span></div>`;clearTimeout(tt);tt=setTimeout(()=>{$('#toast-root').innerHTML=''},3200)}
+
+/* ---------- actions ---------- */
+function addEmail(e){e.id='e'+(ESEQ++);e.at=Date.now();EMAILS.unshift(e);return e}
+function approve(id,noteTxt){
+  const i=I(id),me=ME(),u=U[i.author];
+  i.approved=true;i.approvedBy='me';i.approvedAt=Date.now();
+  addEmail({type:'Approval',to:u.email,from:me.email,subject:`Your idea ${code(i)} has been approved`,body:`Hi ${first(u)},\n\n${me.name} approved your idea "${i.title}" on ZB Idea Manager.\n\n${noteTxt?'Note from the reviewer:\n'+noteTxt+'\n\n':''}Reply to this email or from your Activity page.\n\nZB Idea Manager`});
+  if(i.author==='me') NOTES.unshift({id:'n'+(NSEQ++),type:'approval',idea:i.id,from:'me',at:Date.now(),unread:true,note:noteTxt});
+  toast(`Approved. Email sent to ${u.email}`);
+}
+function digest(){
+  const ch=CH[S.rank.ch],list=scoreAll(S.rank.ch).slice(0,5),me=ME();
+  addEmail({type:'Digest',to:me.email,from:'ranker@ideas.zb.co.zw',subject:`Top 5 ideas: ${ch?ch.title:'All ideas'}`,body:`Hi ${first(me)},\n\nThese are the five highest ranked ideas right now. Open ZB Idea Manager to read them in full.\n\n${list.map((x,n)=>`${n+1}. ${x.i.title} (${x.total}/100) by ${U[x.i.author].name}`).join('\n')}\n\nZB Idea Ranker`});
+  toast('Top 5 sent to '+me.email);
+}
+function startChat(uid){
+  let c=CONVS.find(k=>k.with===uid);
+  if(!c){c={id:'k'+Date.now(),with:uid,msgs:[]};CONVS.push(c)}
+  S.chatOpen=c.id; if(!c.msgs.length) c.msgs.push({from:'me',t:'Hi '+first(U[uid])+'!',at:Date.now()});
+  go('chat');S.chatOpen=c.id;render();
+}
+function signIn(){
+  const local=S.email.split('@')[0],name=local.split(/[._-]/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')||'ZB Employee';
+  U.me={id:'me',name,title:S.role==='admin'?'Executive, Digital Strategy':'Business Analyst',dept:'Digital Banking',bio:'I like ideas that save a customer a trip to the branch.',joined:'2023',isAdmin:S.role==='admin',c:COLORS[0],email:S.email.toLowerCase(),img:null};
+  if(!EMAILS.length){const e=addEmail({type:'Approval',to:U.me.email,from:U.u6.email,subject:'Your idea ZB-IDEA-0132 has been approved',body:`Hi ${first(U.me)},\n\nTapiwa Dube approved your idea "Payday cash forecasting from payroll calendars" on ZB Idea Manager.\n\nNote from the reviewer:\n${NOTES[0].note}\n\nReply to this email or from your Activity page.\n\nZB Idea Manager`});e.at=NOW-3*D}
+  S.authed=true;S.err='';S.route={name:S.role==='admin'?'ranking':'home'};S.stack=[];render();window.scrollTo(0,0);
+  toast(`Verified as ZB staff. Welcome, ${first(U.me)}.`);
+}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-a]'); if(!t) return;
+  const a=t.dataset.a,id=t.dataset.id;
+  if(a==='scrim'){if(e.target===t)closeModal();return}
+  e.stopPropagation();
+  switch(a){
+    case 'go': if(t.dataset.hash)S.scrollTo=t.dataset.hash; go(t.dataset.r,id); break;
+    case 'back': back(); break;
+    case 'like':{const i=I(id);i.liked=!i.liked;i.likes+=i.liked?1:-1;render();break}
+    case 'save':{const i=I(id);i.saved=!i.saved;render();toast(i.saved?'Saved to your profile':'Removed from saved');break}
+    case 'share':{const i=I(id);i.shares++;const txt=`${code(i)}: ${i.title}`;try{navigator.clipboard.writeText(txt).catch(()=>{})}catch(_){}render();toast('Link to '+code(i)+' copied');break}
+    case 'tab': S.feedTab=t.dataset.v; render(); break;
+    case 'ptab': S.ptab=t.dataset.v; render(); break;
+    case 'filter': if(S.route.name!=='home')go('home'); openModal({type:'filter'}); break;
+    case 'fstatus':{const v=t.dataset.v,s=S.filter.statuses;S.filter.statuses=s.includes(v)?s.filter(x=>x!==v):s.concat(v);renderModal();render();break}
+    case 'fclear': S.filter={statuses:[],challenge:'all'}; if(S.modal)renderModal(); render(); break;
+    case 'fapply': closeModal(); render(); break;
+    case 'searchToggle': if(S.route.name!=='home')go('home'); S.searchOpen=!S.searchOpen; render(); {const q=$('#qm');if(q)q.focus()} break;
+    case 'sheet': openModal({type:'sheet'}); break;
+    case 'new': S.draftDocs=[]; openModal({type:'newIdea',challenge:id||''}); break;
+    case 'close': closeModal(); break;
+    case 'doc': openModal({type:'doc',id,idx:+t.dataset.idx}); break;
+    case 'approve': openModal({type:'approve',id}); break;
+    case 'digest': digest(); break;
+    case 'openChat': S.chatOpen=id; render(); {const f=$('.th-form .inp');if(f&&window.innerWidth>899)f.focus()} break;
+    case 'closeChat': S.chatOpen=null; render(); break;
+    case 'newChat': openModal({type:'newChat'}); break;
+    case 'startChat': closeModal(true); startChat(id); break;
+    case 'editProfile': openModal({type:'edit'}); break;
+    case 'newChallenge': openModal({type:'newChallenge'}); break;
+    case 'rmDoc': S.draftDocs.splice(+t.dataset.v,1); $('#draft-docs').innerHTML=draftDocs(); break;
+    case 'mail': S.openMail=S.openMail===id?null:id; render(); break;
+    case 'role': S.role=t.dataset.v; render(); break;
+    case 'loginBack': S.step='creds'; S.err=''; render(); break;
+    case 'switchRole':{const me=ME();me.isAdmin=!me.isAdmin;me.title=me.isAdmin?'Executive, Digital Strategy':'Business Analyst';closeModal(true);if(['insights','ranking','users','emails'].includes(S.route.name)&&!me.isAdmin)S.route={name:'home'};render();toast(me.isAdmin?'Executive admin view on':'Employee view on');break}
+    case 'signout': closeModal(true); S.authed=false; S.step='creds'; S.err=''; render(); break;
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&S.modal) closeModal();
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-a][tabindex]')){e.preventDefault();e.target.click()}
+});
+document.addEventListener('input',e=>{
+  const t=e.target,k=t.dataset.in; if(!k) return;
+  if(k==='search'){S.search=t.value;const f=$('#feed');if(f)f.innerHTML=feedList()}
+  if(k==='mq'){S.memberQ=t.value;$('#mgrid').innerHTML=memberCards()}
+  if(k==='uq'){S.userQ=t.value;$('#ubody').innerHTML=userRows()}
+  if(k==='w'){S.rank.w[t.dataset.k]=+t.value;$('#o-'+t.dataset.k).textContent=t.value;$('#rank-list').innerHTML=rankList()}
+});
+document.addEventListener('change',e=>{
+  const t=e.target,k=t.dataset.in; if(!k) return;
+  if(k==='rankCh'){S.rank.ch=t.value;$('#rank-list').innerHTML=rankList()}
+  if(k==='fch'){S.filter.challenge=t.value;render()}
+  if(k==='status'){const i=I(t.dataset.id);i.status=t.value;render();toast(`${code(i)} moved to ${t.value}`)}
+  if(k==='docs'){[...t.files].forEach(f=>S.draftDocs.push({n:f.name,s:size(f.size)}));t.value='';$('#draft-docs').innerHTML=draftDocs()}
+  if(k==='photo'){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{ME().img=r.result;render();if(S.modal)renderModal();toast('Profile photo updated')};r.readAsDataURL(f)}
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=e.target,k=f.dataset.f,d=Object.fromEntries(new FormData(f)),id=f.dataset.id;
+  if(k==='login'){S.email=(d.email||'').trim();if(!/^[^@\s]+@zb\.co\.zw$/i.test(S.email)){S.err='Use your ZB work email, ending in @zb.co.zw.';render();return}if(!d.pw){S.err='Enter your password.';render();return}S.err='';S.step='verify';render();setTimeout(()=>{const c=$('#lg-code');if(c)c.focus()},30);return}
+  if(k==='verify'){if(!/^\d{6}$/.test((d.code||'').trim())){S.err='Enter the 6 digits from the email.';render();return}signIn();return}
+  if(k==='comment'){const t=(d.t||'').trim();if(!t)return;I(id).comments.push({u:'me',t,at:Date.now()});S.scrollTo='comments';render();toast('Comment posted');return}
+  if(k==='chat'){const t=(d.t||'').trim();if(!t)return;CONVS.find(c=>c.id===id).msgs.push({from:'me',t,at:Date.now()});render();const i=$('.th-form .inp');if(i)i.focus();return}
+  if(k==='reply'){const t=(d.t||'').trim();if(!t)return;const n=NOTES.find(x=>x.id===id),to=U[n.from],i=I(n.idea);n.reply=t;
+    addEmail({type:'Reply',to:to.email,from:ME().email,subject:`Re: Your idea ${code(i)} has been approved`,body:t});render();toast('Reply sent to '+to.name);return}
+  if(k==='newIdea'){
+    const title=(d.title||'').trim(),summary=(d.summary||'').trim(),body=(d.body||'').split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+    if(!title||!summary){$('#ni-err').textContent='Add a title and a short summary so colleagues know what the idea is.';return}
+    const i={id:'i'+Date.now(),num:SEQ++,author:'me',challenge:d.challenge||null,status:d.status||'Idea',created:Date.now(),likes:0,shares:0,liked:false,saved:false,approved:false,title,summary,body:body.length?body:[summary],docs:S.draftDocs.slice(),comments:[]};
+    IDEAS.unshift(i);S.draftDocs=[];closeModal(true);go('idea',i.id);toast(`Posted as ${code(i)}`);return}
+  if(k==='approve'){approve(id,(d.note||'').trim());closeModal();render();return}
+  if(k==='edit'){const me=ME();me.name=(d.name||me.name).trim();me.title=(d.title||'').trim();me.dept=(d.dept||'').trim();me.bio=(d.bio||'').trim();closeModal();render();toast('Profile saved');return}
+  if(k==='newChallenge'){const cid='c'+Date.now(),kw=(d.kw||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    CH[cid]={id:cid,title:d.title.trim(),brief:d.brief.trim(),keywords:kw.length?kw:d.title.toLowerCase().split(/\W+/).filter(w=>w.length>3).slice(0,6),deadline:d.deadline?new Date(d.deadline).getTime():Date.now()+30*D,by:'me',posted:Date.now()};
+    NOTES.unshift({id:'n'+(NSEQ++),type:'challenge',challenge:cid,from:'me',at:Date.now(),unread:false});
+    closeModal(true);go('challenge',cid);toast('Challenge posted to all verified staff');return}
+});
+
+render();
+})();
+</script>
+
+</body></html>
