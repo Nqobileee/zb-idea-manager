@@ -169,8 +169,8 @@ class WebAppTest extends TestCase
 
     public function test_new_accounts_get_no_made_up_role_department_or_bio(): void
     {
-        config(['ideas.require_code' => false]);
-        Livewire::test(Login::class)->set('email', 'blank.slate@example.com')->set('role', 'admin')->call('sendCode');
+        config(['ideas.require_code' => false, 'ideas.admin_code' => 'sesame']);
+        Livewire::test(Login::class)->set('email', 'blank.slate@example.com')->set('role', 'admin')->set('adminCode', 'sesame')->call('sendCode');
         $u = User::where('email', 'blank.slate@example.com')->firstOrFail();
         $this->assertNull($u->title);
         $this->assertNull($u->dept);
@@ -269,7 +269,20 @@ class WebAppTest extends TestCase
 
     public function test_role_choice_at_sign_in_for_now(): void
     {
-        $page = Livewire::test(Login::class)->set('email', 'new.person@example.com')->set('role', 'admin')->call('sendCode');
+        config(['ideas.admin_code' => 'sesame']);
+        $wrong = Livewire::test(Login::class)->set('email', 'sneaky@example.com')->set('role', 'admin')->set('adminCode', 'nope')->call('sendCode');
+        $wrong->assertSet('step', 'email');
+        $this->assertNull(User::where('email', 'sneaky@example.com')->first());
+
+        $hub = Livewire::test(Login::class)->set('email', 'hub.person@example.com')->set('role', 'hub_member')->call('sendCode');
+        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
+        $hub->set('code', $m[1])->call('verify');
+        $hubUser = User::where('email', 'hub.person@example.com')->firstOrFail();
+        $this->assertFalse($hubUser->is_admin);
+        $this->assertSame('Hub member', $hubUser->role_label);
+        auth()->logout();
+
+        $page = Livewire::test(Login::class)->set('email', 'new.person@example.com')->set('role', 'admin')->set('adminCode', 'sesame')->call('sendCode');
         preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
         $page->set('code', $m[1])->call('verify');
         $this->assertTrue(User::where('email', 'new.person@example.com')->firstOrFail()->is_admin);

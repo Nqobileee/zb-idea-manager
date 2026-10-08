@@ -50,7 +50,7 @@
         <div class="mt-auto border-t border-line pt-3.5">
             <a href="{{ route('profile', $user) }}" wire:navigate class="flex items-center gap-2.5 rounded-xl p-2 hover:bg-surface">
                 <x-avatar :user="$user" :size="36" />
-                <span class="min-w-0"><b class="block truncate">{{ $user->name }}</b><small class="text-xs text-muted">{{ $user->is_admin ? 'Executive admin' : 'Employee' }}</small></span>
+                <span class="min-w-0"><b class="block truncate">{{ $user->name }}</b><small class="text-xs text-muted">{{ $user->role_label }}</small></span>
             </a>
             <form method="POST" action="{{ route('logout') }}">@csrf
                 <button class="nav"><x-icon name="logout" :size="18" /> Sign out</button>

@@ -62,7 +62,7 @@ class AuthCodes
     }
 
     /** Find the user for a verified email, creating the account on first sign-in when allowed. */
-    public function userFor(string $email, bool $admin = false): ?User
+    public function userFor(string $email, bool $admin = false, string $memberType = 'employee'): ?User
     {
         $email = strtolower(trim($email));
         $user = User::where('email', $email)->first();
@@ -72,7 +72,7 @@ class AuthCodes
 
         return User::create([
             'name' => User::nameFromEmail($email), 'email' => $email,
-            'joined' => (string) now()->year, 'is_admin' => $admin, 'color' => '#049016',
+            'joined' => (string) now()->year, 'is_admin' => $admin, 'member_type' => array_key_exists($memberType, User::MEMBER_TYPES) ? $memberType : 'employee', 'color' => '#049016',
         ]);
     }
 }

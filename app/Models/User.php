@@ -13,6 +13,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const MEMBER_TYPES = ['employee' => 'Employee', 'hub_member' => 'Hub member', 'general' => 'General'];
+
     protected $guarded = [];
 
     protected $hidden = ['password', 'remember_token'];
@@ -33,6 +35,12 @@ class User extends Authenticatable
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class);
+    }
+
+    /** Label shown under the name: Executive admin, or the member type picked at sign-in. */
+    public function getRoleLabelAttribute(): string
+    {
+        return $this->is_admin ? 'Executive admin' : (self::MEMBER_TYPES[$this->member_type] ?? 'Employee');
     }
 
     public function getInitialsAttribute(): string

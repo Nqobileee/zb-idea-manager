@@ -32,11 +32,16 @@
                         <fieldset>
                             <legend class="lbl">Sign in as</legend>
                             <div class="grid grid-cols-2 gap-2">
-                                @foreach (['employee' => 'Employee', 'admin' => 'Executive admin'] as $v => $l)
+                                @foreach ($roles as $v => $l)
                                     <label @class(['cursor-pointer rounded-xl border px-3 py-2.5 text-center text-sm font-semibold', 'border-brand bg-tint text-brand' => $role === $v, 'border-line' => $role !== $v])><input type="radio" class="sr-only" value="{{ $v }}" wire:model.live="role">{{ $l }}</label>
                                 @endforeach
                             </div>
-                            <p class="hint mt-1.5">Temporary: anyone can choose either role while the app is being set up.</p>
+                            @if ($role === 'admin')
+                                <div class="mt-3">
+                                    <label class="lbl" for="adminCode">Executive access code</label>
+                                    <input id="adminCode" type="password" wire:model="adminCode" class="inp" autocomplete="off" required>
+                                </div>
+                            @endif
                         </fieldset>
                     @endif
                     @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif

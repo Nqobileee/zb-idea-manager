@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use App\Services\AuthCodes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -20,6 +22,8 @@ class Login extends Component
 
     public string $role = 'employee';
 
+    public string $adminCode = '';
+
     public ?string $error = null;
 
     public function sendCode(AuthCodes $codes)
@@ -31,6 +35,11 @@ class Login extends Component
             return;
         }
         $this->error = null;
+        if ($this->adminCodeError()) {
+            $this->error = $this->adminCodeError();
+
+            return;
+        }
         if (! config('ideas.require_code')) {
             return $this->signInAs($codes);
         }
@@ -59,14 +68,22 @@ class Login extends Component
     private function signInAs(AuthCodes $codes)
     {
         $wantsAdmin = config('ideas.allow_role_choice') && $this->role === 'admin';
-        $user = $codes->userFor($this->email, $wantsAdmin);
+        if ($wantsAdmin && $this->adminCodeError()) {
+            $this->error = $this->adminCodeError();
+
+            return;
+        }
+        $user = $codes->userFor($this->email, $wantsAdmin, $this->role);
         if (! $user) {
             $this->error = 'We could not find a ZB account for that email.';
 
             return;
         }
-        if (config('ideas.allow_role_choice') && $user->is_admin !== $wantsAdmin) {
-            $user->update(['is_admin' => $wantsAdmin]);
+        if (config('ideas.allow_role_choice')) {
+            $user->update([
+                'is_admin' => $wantsAdmin,
+                'member_type' => array_key_exists($this->role, User::MEMBER_TYPES) ? $this->role : $user->member_type,
+            ]);
         }
         Auth::login($user, remember: true);
         session()->regenerate();
@@ -74,8 +91,32 @@ class Login extends Component
         return redirect()->intended($user->is_admin ? route('admin.ranking') : route('home'));
     }
 
+    /** Executive admin needs the secret code on top of the email. Returns an error message, or null when the code is right. */
+    private function adminCodeError(): ?string
+    {
+        if (! config('ideas.allow_role_choice') || $this->role !== 'admin') {
+            return null;
+        }
+        $secret = (string) config('ideas.admin_code');
+        $key = 'admin-code:'.request()->ip().'|'.$this->email;
+        if ($secret === '') {
+            return 'Executive admin sign-in is not enabled.';
+        }
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return 'Too many attempts. Try again in a few minutes.';
+        }
+        if (! hash_equals($secret, trim($this->adminCode))) {
+            RateLimiter::hit($key, 600);
+
+            return 'That executive access code is not right.';
+        }
+        RateLimiter::clear($key);
+
+        return null;
+    }
+
     public function render()
     {
-        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code'), 'needsCode' => config('ideas.require_code'), 'roleChoice' => config('ideas.allow_role_choice')]);
+        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code'), 'needsCode' => config('ideas.require_code'), 'roleChoice' => config('ideas.allow_role_choice'), 'roles' => User::MEMBER_TYPES + ['admin' => 'Executive admin']]);
     }
 }

@@ -14,6 +14,9 @@ return [
     // executives are assigned (then admin rights can only be changed in the database).
     'allow_role_choice' => (bool) env('IDEAS_ALLOW_ROLE_CHOICE', true),
 
+    // Secret code required (with the email) to sign in as Executive admin. Leave empty to disable admin sign-in.
+    'admin_code' => env('IDEAS_ADMIN_CODE', ''),
+
     // Where uploaded images, documents and avatars are stored: 'public' (server disk) or 'supabase' (Supabase Storage).
     'upload_disk' => env('IDEAS_UPLOAD_DISK', 'public'),
 
