@@ -37,7 +37,8 @@ return new class extends Migration
         });
         DB::table('messages')->whereNotNull('read_at')->update(['delivered_at' => DB::raw('read_at')]);
 
-        DB::table('conversations')->insert(['is_group' => true, 'name' => 'All staff', 'created_at' => now(), 'updated_at' => now()]);
+        // No timestamps, so `php artisan schema:sql` writes the same template every time.
+        DB::table('conversations')->insert(['is_group' => true, 'name' => 'All staff']);
     }
 
     public function down(): void

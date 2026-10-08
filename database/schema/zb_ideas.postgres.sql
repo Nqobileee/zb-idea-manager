@@ -102,6 +102,25 @@ alter table "idea_tasks" add constraint "idea_tasks_idea_id_foreign" foreign key
 alter table "idea_tasks" add constraint "idea_tasks_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
 create index "idea_tasks_idea_id_done_index" on "idea_tasks" ("idea_id", "done");
 
+-- 2026_10_06_000000_add_member_type_to_users.php
+alter table "users" add column "member_type" varchar(16) not null default 'employee';
+
+-- 2026_10_08_000000_add_group_chat_and_delivery_ticks.php
+alter table "conversations" add column "is_group" boolean not null default '0';
+alter table "conversations" add column "name" varchar(255) null;
+create index "conversations_is_group_index" on "conversations" ("is_group");
+alter table "conversations" alter column "user_a" type bigint, alter column "user_a" drop not null, alter column "user_a" drop default, alter column "user_a" drop identity if exists;
+alter table "conversations" alter column "user_b" type bigint, alter column "user_b" drop not null, alter column "user_b" drop default, alter column "user_b" drop identity if exists;
+comment on column "conversations"."user_a" is NULL;
+comment on column "conversations"."user_b" is NULL;
+create table "conversation_reads" ("conversation_id" bigint not null, "user_id" bigint not null, "last_message_id" bigint not null default '0');
+alter table "conversation_reads" add constraint "conversation_reads_conversation_id_foreign" foreign key ("conversation_id") references "conversations" ("id") on delete cascade;
+alter table "conversation_reads" add constraint "conversation_reads_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "conversation_reads" add primary key ("conversation_id", "user_id");
+alter table "messages" add column "delivered_at" timestamp(0) without time zone null;
+update "messages" set "delivered_at" = read_at where "read_at" is not null;
+insert into "conversations" ("is_group", "name") values (true, 'All staff');
+
 -- Row level security: Supabase exposes public tables through its REST API. Enabling RLS with no policies
 -- keeps the data private; Laravel connects as the postgres role, which bypasses RLS.
 alter table "users" enable row level security;
@@ -128,6 +147,7 @@ alter table "whatsapp_messages" enable row level security;
 alter table "idea_members" enable row level security;
 alter table "idea_updates" enable row level security;
 alter table "idea_tasks" enable row level security;
+alter table "conversation_reads" enable row level security;
 
 -- Tell Laravel the migrations are already applied (so a later `php artisan migrate` does nothing).
 create table if not exists "migrations" ("id" serial primary key, "migration" varchar(255) not null, "batch" integer not null);
@@ -139,3 +159,5 @@ insert into "migrations" ("migration", "batch") values ('2026_10_02_000000_enabl
 insert into "migrations" ("migration", "batch") values ('2026_10_03_000000_use_zb_brand_green', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_04_000000_clear_autofilled_profile_text', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_05_000000_create_pipeline_tables', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_06_000000_add_member_type_to_users', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_08_000000_add_group_chat_and_delivery_ticks', 1);

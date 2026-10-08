@@ -4,7 +4,7 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 **Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, and Supabase for the database (Postgres) and optionally file storage. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
 
-> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 33 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
+> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 36 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
 >
 > **Not verified here.** The Android project is generated but was not compiled on the machine this was built on (no Android SDK). The WhatsApp bot was tested against the webhook only, not against a live Meta account. See sections 11 and 12 for the steps.
 
@@ -769,7 +769,7 @@ Fixed limits are in `config/ideas.php`: code lifetime 10 minutes, 5 attempts, 30
 php artisan test
 ```
 
-33 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
+36 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
 
 | Area | What is checked |
 |---|---|
