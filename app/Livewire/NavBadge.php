@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\Conversation;
 use App\Models\Message;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -22,7 +23,13 @@ class NavBadge extends Component
         $n = $this->kind === 'activity'
             ? $user->unreadActivityCount()
             : Message::whereNull('read_at')->where('user_id', '!=', $user->id)
-                ->whereIn('conversation_id', $user->conversations()->select('id'))->count();
+                ->whereIn('conversation_id', $user->conversations()->select('id'))->count()
+                + Conversation::everyone()->unreadFor($user);
+
+        // Unread messages have now reached this person's app, so their senders can be shown the delivered ticks.
+        if ($this->kind === 'chat' && $n) {
+            Message::deliverTo($user);
+        }
 
         return view('livewire.nav-badge', ['n' => $n]);
     }

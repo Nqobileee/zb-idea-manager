@@ -9,7 +9,9 @@ use App\Livewire\Feed;
 use App\Livewire\IdeaCreate;
 use App\Livewire\IdeaShow;
 use App\Models\Activity;
+use App\Models\Conversation;
 use App\Models\Idea;
+use App\Models\Message;
 use App\Models\SentEmail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -305,5 +307,41 @@ class WebAppTest extends TestCase
 
         $stranger = User::where('id', '!=', $me->id)->whereNotIn('id', [$conv->user_a, $conv->user_b])->first();
         $this->actingAs($stranger)->get('/chat/'.$conv->id)->assertForbidden();
+    }
+
+    public function test_group_chat_is_pinned_first_and_open_to_everyone(): void
+    {
+        $me = $this->employee();
+        $group = Conversation::everyone();
+        $this->actingAs($me);
+        Livewire::test(Chat::class)->assertSeeInOrder(['All staff', $me->conversations()->firstOrFail()->other($me)->name]);
+        Livewire::test(Chat::class, ['conversation' => $group])->set('body', 'Hello everyone')->call('send');
+        $this->assertDatabaseHas('messages', ['conversation_id' => $group->id, 'user_id' => $me->id, 'body' => 'Hello everyone']);
+
+        // Any other member can open it, sees who wrote the message, and it stops counting as unread for them only.
+        $other = $this->executive();
+        $third = User::whereNotIn('id', [$me->id, $other->id])->firstOrFail();
+        $this->assertSame(1, $group->unreadFor($other));
+        $this->assertSame(0, $group->unreadFor($me));
+        $this->actingAs($other)->get('/chat/'.$group->id)->assertOk()->assertSee('Hello everyone')->assertSee($me->name);
+        $this->assertSame(0, $group->unreadFor($other));
+        $this->assertSame(1, $group->unreadFor($third));
+    }
+
+    public function test_ticks_turn_green_once_a_message_is_delivered(): void
+    {
+        $me = $this->employee();
+        $conv = $me->conversations()->firstOrFail();
+        $this->actingAs($me);
+        Livewire::test(Chat::class, ['conversation' => $conv])->set('body', 'Are you there?')->call('send')->assertSeeHtml('title="Sent"');
+        $msg = Message::where('body', 'Are you there?')->firstOrFail();
+        $this->assertNull($msg->delivered_at);
+
+        // The receiver only has to load the app; they do not need to open the conversation.
+        $this->actingAs($conv->other($me))->get('/')->assertOk();
+        $this->assertNotNull($msg->fresh()->delivered_at);
+        $this->assertNull($msg->fresh()->read_at);
+        $this->actingAs($me);
+        Livewire::test(Chat::class, ['conversation' => $conv])->assertSeeHtml('title="Delivered"')->assertDontSeeHtml('title="Sent"');
     }
 }

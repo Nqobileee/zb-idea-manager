@@ -64,30 +64,33 @@ class Chat extends Component
         $msg = $conv->messages()->create(['user_id' => $me->id, 'body' => mb_substr($text, 0, 4000)]);
         $conv->update(['last_message_at' => now()]);
         $this->reset('body');
-        Realtime::send(new MessageSent($msg, $conv->other($me)->id));
+        Realtime::send(new MessageSent($msg, $conv->is_group ? null : $conv->other($me)->id));
     }
 
     public function render()
     {
         $me = auth()->user();
-        $conv = $this->conversationId ? Conversation::with(['userA', 'userB', 'messages'])->find($this->conversationId) : null;
-        if ($conv) {
-            Message::where('conversation_id', $conv->id)->where('user_id', '!=', $me->id)->whereNull('read_at')->update(['read_at' => now()]);
-        }
+        Message::deliverTo($me);
+        $conv = $this->conversationId ? Conversation::with(['userA', 'userB', 'messages.sender'])->find($this->conversationId) : null;
+        $conv?->markRead($me);
 
-        $list = $me->conversations()->with(['userA', 'userB'])->get()
-            ->map(function (Conversation $c) use ($me) {
-                $c->last = Message::where('conversation_id', $c->id)->latest('id')->first();
-                $c->unread = Message::where('conversation_id', $c->id)->where('user_id', '!=', $me->id)->whereNull('read_at')->count();
+        $summarise = function (Conversation $c) use ($me) {
+            $c->last = Message::with('sender')->where('conversation_id', $c->id)->latest('id')->first();
+            $c->unread = $c->unreadFor($me);
 
-                return $c;
-            })->filter(fn ($c) => $c->last)->sortByDesc(fn ($c) => $c->last->created_at)->values();
+            return $c;
+        };
+
+        // The all-staff group is always pinned first; private chats follow, newest on top.
+        $group = $summarise(Conversation::everyone());
+        $list = $me->conversations()->with(['userA', 'userB'])->get()->map($summarise)
+            ->filter(fn ($c) => $c->last)->sortByDesc(fn ($c) => $c->last->created_at)->values();
 
         $people = $this->picking
             ? User::where('id', '!=', $me->id)->when($this->find, fn ($q) => $q->whereLike('name', '%'.$this->find.'%'))->orderBy('name')->get()
             : collect();
 
-        return view('livewire.chat', ['conv' => $conv, 'list' => $list, 'people' => $people, 'me' => $me])
+        return view('livewire.chat', ['conv' => $conv, 'group' => $group, 'list' => $list, 'people' => $people, 'me' => $me, 'members' => User::count()])
             ->layout('layouts.app', ['bare' => (bool) $conv, 'noDock' => true, 'title' => 'Chat']);
     }
 }

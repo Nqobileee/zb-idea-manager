@@ -79,6 +79,7 @@ class SampleDataSeeder extends Seeder
                     'conversation_id' => $conv->id, 'user_id' => $users[$m['from']]->id, 'body' => $m['t'],
                     'created_at' => $at($m['at_h']), 'updated_at' => $at($m['at_h']),
                     'read_at' => $m['from'] === 'me' ? $at($m['at_h']) : null,
+                    'delivered_at' => $m['from'] === 'me' ? $at($m['at_h']) : null,
                 ]);
             }
             $conv->update(['last_message_at' => $at(collect($c['msgs'])->max('at_h'))]);

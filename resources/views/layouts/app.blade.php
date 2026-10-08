@@ -116,7 +116,10 @@
         const id = {{ $user->id }};
         window.Echo.private('users.' + id)
             .listen('.ActivityCreated', () => Livewire.dispatch('realtime'))
-            .listen('.MessageSent', () => Livewire.dispatch('realtime'));
+            .listen('.MessageSent', () => Livewire.dispatch('realtime'))
+            .listen('.MessageDelivered', () => Livewire.dispatch('realtime'));
+        // The all-staff group chat has one channel for everyone.
+        window.Echo.private('everyone').listen('.MessageSent', () => Livewire.dispatch('realtime'));
     });
 </script>
 </body>

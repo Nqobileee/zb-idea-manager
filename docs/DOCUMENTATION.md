@@ -4,7 +4,7 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 **Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, and Supabase for the database (Postgres) and optionally file storage. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
 
-> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 26 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
+> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 33 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
 >
 > **Not verified here.** The Android project is generated but was not compiled on the machine this was built on (no Android SDK). The WhatsApp bot was tested against the webhook only, not against a live Meta account. See sections 11 and 12 for the steps.
 
@@ -67,7 +67,7 @@ flowchart LR
 - **Idea page** with stage tracker, images, full text, downloadable documents and comments.
 - **Post an idea** with title, summary, details, stage, challenge, photos and documents (PDF, Office files, CSV; up to 10 MB each).
 - **Challenges** set by executives, with keywords and a deadline. "Answer this challenge" pre-selects it in the idea form.
-- **Chat** one to one, updated live through Reverb. On a phone an open conversation takes the whole screen.
+- **Chat** with an *All staff* group that every member is in, pinned on top of the list, and one to one chats with anyone below it. In the group, tapping a sender's name starts a private chat with them. Updated live through Reverb. Your own messages show one grey tick when sent and two green ticks once delivered. On a phone an open conversation takes the whole screen.
 - **Activity** for likes, comments, approvals, stage changes and new challenges, with an unread badge.
 - **Members and profiles** with a photo, bio, their ideas and (on your own profile) saved ideas.
 - **WhatsApp** to link your number, post ideas, check your ideas, see top ideas and get notified.
@@ -127,7 +127,7 @@ How it fits together
   - `Ranking`: the scoring formula.
   - `AuthCodes`: send and check the 6-digit code.
   - `WhatsappBot`: the conversation state machine. `WhatsappClient`: sends messages through the Cloud API.
-- **Events** `MessageSent` and `ActivityCreated` are broadcast on private channels. If Reverb is down the app still works; users just need to refresh to see new items.
+- **Events** `MessageSent`, `MessageDelivered` and `ActivityCreated` are broadcast on private channels. If Reverb is down the app still works; users just need to refresh to see new items.
 - **Android** loads the live site inside a native shell. See section 10.
 
 ## 4. Data model
@@ -219,6 +219,8 @@ erDiagram
         bigint id
         bigint user_a
         bigint user_b
+        bool is_group
+        string name
         timestamp last_message_at
     }
     MESSAGES {
@@ -226,6 +228,7 @@ erDiagram
         bigint conversation_id
         bigint user_id
         text body
+        timestamp delivered_at
         timestamp read_at
     }
     ACTIVITIES {
@@ -252,6 +255,8 @@ erDiagram
 Pipeline tables: `idea_updates` (progress notes and stage moves), `idea_tasks` (pending items), `idea_members` (tagged members), and a `note` column on `ideas`. Row level security is switched on for the new tables too.
 
 Other tables: `login_codes` (hashed one-time codes with expiry and attempt count), `sent_emails` (the email log), `whatsapp_messages` (message ids for de-duplication, direction, delivery status), plus Laravel's `sessions`, `cache` and `jobs`.
+
+The *All staff* group chat is one `conversations` row with `is_group = true` and no user pair; everyone signed in belongs to it, so there is no membership table. `conversation_reads` holds how far each person has read it (a group message has many readers, so `messages.read_at` is used for one to one chats only). `messages.delivered_at` is set the first time a message reaches someone else's app and drives the ticks.
 
 Idea codes are shown as `ZB-IDEA-0141` (from `ideas.num`). Stages are `Idea, Prototype, Demo, Pilot, Launched`; `approved` is a separate flag.
 
@@ -283,7 +288,7 @@ stateDiagram-v2
 | `/ideas/{idea}` | `IdeaShow` | Signed in |
 | `/challenges`, `/challenges/{id}` | `Challenges`, `ChallengeShow` | Signed in |
 | `/challenges/create` | `ChallengeCreate` | Executives |
-| `/chat/{conversation?}` | `Chat` | Participants only |
+| `/chat/{conversation?}` | `Chat` | Participants only; the All staff group is open to everyone signed in |
 | `/activity` | `ActivityFeed` | Signed in |
 | `/members`, `/members/{user}` | `Members`, `Profile` | Signed in |
 | `/pipeline` | `Pipeline` (Board and Projects views) | Signed in |
@@ -394,14 +399,17 @@ The formula lives in `app/Services/Ranking.php`. It stands in for a trained mode
 
 ## 8. Realtime with Reverb
 
-Laravel Reverb is a websocket server that ships with Laravel. Two events are broadcast on **private** channels, authorised in `routes/channels.php`:
+Laravel Reverb is a websocket server that ships with Laravel. Three events are broadcast on **private** channels, authorised in `routes/channels.php`:
 
 | Event | Channel | Effect |
 |---|---|---|
-| `MessageSent` | `conversations.{id}` and the receiver's `users.{id}` | New chat messages appear and the Chat badge updates |
+| `MessageSent` | `conversations.{id}` and the receiver's `users.{id}`, or `everyone` for the All staff group | New chat messages appear and the Chat badge updates |
+| `MessageDelivered` | The sender's `users.{id}` | The sender's ticks turn green |
 | `ActivityCreated` | `users.{id}` | The Activity badge and list update |
 
-The layout subscribes to `users.{your id}` with Laravel Echo and dispatches a Livewire event named `realtime`. Components that listen for it simply re-render.
+The layout subscribes to `users.{your id}` and to `everyone` with Laravel Echo and dispatches a Livewire event named `realtime`. Components that listen for it simply re-render.
+
+A message counts as delivered when the other person's app loads or refreshes while it is waiting for them; they do not have to open the conversation. In the group it is the first other member to receive it. `Message::deliverTo()` does this from the Chat page and the Chat badge.
 
 ```mermaid
 sequenceDiagram
@@ -761,7 +769,7 @@ Fixed limits are in `config/ideas.php`: code lifetime 10 minutes, 5 attempts, 30
 php artisan test
 ```
 
-26 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
+33 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
 
 | Area | What is checked |
 |---|---|
@@ -770,7 +778,7 @@ php artisan test
 | Feed and ideas | Seeded ideas and images render, search, like toggles and notifies the author, comments notify, posting with a document and an image |
 | Executive | Approval emails the author and adds an Activity item, the digest is logged, employees cannot approve, ranking order |
 | Empty database | The default seeder adds nothing, and every page renders with no data at all |
-| Chat | Sending a message |
+| Chat | Sending a message, the All staff group pinned first and open to everyone, per-person unread counts in the group, ticks turning green on delivery |
 | WhatsApp | Webhook handshake, unsigned requests rejected, linking by emailed code, posting an idea by chat, cancel, employees blocked from executive commands, executive approval end to end, stop and unlink, lockout after wrong codes, duplicate deliveries ignored |
 
 Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.
@@ -781,7 +789,7 @@ Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.
 - Executive rights come from the database and are enforced by middleware and inside `IdeaActions::approve()`. WhatsApp approvals pass through the same check.
 - Webhook requests are verified with HMAC-SHA256, de-duplicated by message id and rate limited per number.
 - A WhatsApp number is linked only after the user proves they own the email. Unlinked numbers can do nothing but link.
-- Chat channels are authorised per participant; opening someone else's conversation returns 403.
+- Chat channels are authorised per participant; opening someone else's conversation returns 403. The All staff group is the one conversation every signed-in member can read and post in.
 - Uploads are limited by type and size and stored on the `public` disk. For stricter control, move documents to a private disk and serve them through a signed route, and add malware scanning.
 - Keep customer data out of ideas and chats. Phone numbers and message ids are the only WhatsApp data stored; message text is not kept.
 - Notifications are opt-in per user (profile switch or `stop`).
@@ -790,7 +798,7 @@ Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.
 
 ```
 app/
-  Events/                 MessageSent, ActivityCreated (broadcast)
+  Events/                 MessageSent, MessageDelivered, ActivityCreated (broadcast)
   Http/Controllers/       WhatsappWebhookController
   Http/Middleware/        EnsureExecutive
   Livewire/               one class per page (Feed, IdeaShow, Chat, Admin/Ranking, ...)
