@@ -88,7 +88,14 @@ class Feed extends Component
             ? $all->sortByDesc('created_at')
             : $all->sortByDesc(fn (Idea $i) => $this->score($i, $me, $ranking));
 
+        // open challenges sit at the top of the feed, newest first, until their deadline passes
+        $filtering = trim($this->search) !== '' || $this->statuses || $this->challenge !== 'all';
+        $openChallenges = $filtering ? collect() : Challenge::with('owner')->withCount('ideas')
+            ->where(fn ($w) => $w->whereNull('deadline')->orWhere('deadline', '>=', now()->toDateString()))
+            ->latest()->take(5)->get();
+
         return view('livewire.feed', [
+            'openChallenges' => $openChallenges,
             'ideas' => $ideas->values()->take($this->limit),
             'total' => $ideas->count(),
             'challenges' => Challenge::orderBy('title')->get(),

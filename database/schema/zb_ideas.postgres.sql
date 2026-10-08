@@ -81,6 +81,27 @@ update "users" set "color" = '#049016' where "color" = '#0d4a36';
 alter table "users" alter column "color" type varchar(9), alter column "color" set not null, alter column "color" set default '#049016', alter column "color" drop identity if exists;
 comment on column "users"."color" is NULL;
 
+-- 2026_10_04_000000_clear_autofilled_profile_text.php
+update "users" set "title" = null where "title" in ('Business Analyst', 'Executive, Digital Strategy', 'Executive', 'Employee');
+update "users" set "dept" = null where "dept" = 'Digital Banking';
+update "users" set "bio" = null where "bio" = 'I like ideas that save a customer a trip to the branch.';
+
+-- 2026_10_05_000000_create_pipeline_tables.php
+alter table "ideas" add column "note" text null;
+create table "idea_members" ("idea_id" bigint not null, "user_id" bigint not null, "added_by" bigint null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "idea_members" add constraint "idea_members_idea_id_foreign" foreign key ("idea_id") references "ideas" ("id") on delete cascade;
+alter table "idea_members" add constraint "idea_members_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "idea_members" add constraint "idea_members_added_by_foreign" foreign key ("added_by") references "users" ("id") on delete set null;
+alter table "idea_members" add primary key ("idea_id", "user_id");
+create table "idea_updates" ("id" bigserial not null primary key, "idea_id" bigint not null, "user_id" bigint not null, "kind" varchar(8) not null default 'update', "body" text null, "from_stage" varchar(16) null, "to_stage" varchar(16) null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "idea_updates" add constraint "idea_updates_idea_id_foreign" foreign key ("idea_id") references "ideas" ("id") on delete cascade;
+alter table "idea_updates" add constraint "idea_updates_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+create index "idea_updates_idea_id_created_at_index" on "idea_updates" ("idea_id", "created_at");
+create table "idea_tasks" ("id" bigserial not null primary key, "idea_id" bigint not null, "user_id" bigint not null, "title" varchar(255) not null, "due_date" date null, "done" boolean not null default '0', "done_at" timestamp(0) without time zone null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "idea_tasks" add constraint "idea_tasks_idea_id_foreign" foreign key ("idea_id") references "ideas" ("id") on delete cascade;
+alter table "idea_tasks" add constraint "idea_tasks_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+create index "idea_tasks_idea_id_done_index" on "idea_tasks" ("idea_id", "done");
+
 -- Row level security: Supabase exposes public tables through its REST API. Enabling RLS with no policies
 -- keeps the data private; Laravel connects as the postgres role, which bypasses RLS.
 alter table "users" enable row level security;
@@ -104,6 +125,9 @@ alter table "activities" enable row level security;
 alter table "sent_emails" enable row level security;
 alter table "whatsapp_sessions" enable row level security;
 alter table "whatsapp_messages" enable row level security;
+alter table "idea_members" enable row level security;
+alter table "idea_updates" enable row level security;
+alter table "idea_tasks" enable row level security;
 
 -- Tell Laravel the migrations are already applied (so a later `php artisan migrate` does nothing).
 create table if not exists "migrations" ("id" serial primary key, "migration" varchar(255) not null, "batch" integer not null);
@@ -113,3 +137,5 @@ insert into "migrations" ("migration", "batch") values ('0001_01_01_000002_creat
 insert into "migrations" ("migration", "batch") values ('2026_10_01_000000_create_idea_manager_tables', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_02_000000_enable_row_level_security', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_03_000000_use_zb_brand_green', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_04_000000_clear_autofilled_profile_text', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_05_000000_create_pipeline_tables', 1);

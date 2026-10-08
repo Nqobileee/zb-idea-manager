@@ -63,6 +63,28 @@ class Idea extends Model
         return $this->files()->where('kind', 'image');
     }
 
+    /** Members tagged on the project. */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'idea_members')->withTimestamps();
+    }
+
+    /** The author and executives manage the post; tagged members also work on the project itself. */
+    public function canContribute(?User $user): bool
+    {
+        return $user && ($this->canBeManagedBy($user) || $this->members->contains('id', $user->id));
+    }
+
+    public function updates(): HasMany
+    {
+        return $this->hasMany(IdeaUpdate::class)->latest();
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(IdeaTask::class)->orderBy('done')->orderBy('id');
+    }
+
     /** The author can edit or delete their own idea; executives can too. */
     public function canBeManagedBy(?User $user): bool
     {

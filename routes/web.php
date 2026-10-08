@@ -12,6 +12,8 @@ use App\Livewire\Feed;
 use App\Livewire\IdeaCreate;
 use App\Livewire\IdeaShow;
 use App\Livewire\Members;
+use App\Livewire\Pipeline;
+use App\Livewire\ProjectShow;
 use App\Livewire\Profile;
 use App\Livewire\ProfileEdit;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +49,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/chat/{conversation?}', Chat::class)->name('chat');
     Route::get('/activity', ActivityFeed::class)->name('activity');
     Route::get('/members', Members::class)->name('members');
+    Route::get('/pipeline', Pipeline::class)->name('pipeline');
+    Route::get('/projects/{idea}', ProjectShow::class)->name('projects.show');
     Route::get('/profile/edit', ProfileEdit::class)->name('profile.edit');
     Route::get('/members/{user}', Profile::class)->name('profile');
 

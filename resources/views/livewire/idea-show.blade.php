@@ -11,6 +11,7 @@
         <span class="font-mono text-xs text-muted">{{ $idea->code }}</span>
         @if ($idea->approved)<span class="chip"><x-icon name="check" :size="13" /> Approved by {{ $idea->approver?->name }}</span>@endif
         @if ($idea->source === 'whatsapp')<span class="chip chip-ghost">Posted from WhatsApp</span>@endif
+        <a href="{{ route('projects.show', $idea) }}" wire:navigate class="btn btn-sm"><x-icon name="board" :size="15" /> Open project</a>
         @if ($idea->canBeManagedBy($me))
             <span class="ml-auto flex gap-2">
                 <a href="{{ route('ideas.edit', $idea) }}" wire:navigate class="btn btn-sm"><x-icon name="edit" :size="15" /> Edit</a>

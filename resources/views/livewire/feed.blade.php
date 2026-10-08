@@ -38,6 +38,31 @@
         </div>
     @endif
 
+    @if ($openChallenges->isNotEmpty())
+        <section class="-mx-4 mt-4 border-b border-line pb-4 md:mx-0" aria-label="Open challenges">
+            <div class="mb-2 flex items-center justify-between px-4 md:px-0">
+                <h2 class="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-brand uppercase"><x-icon name="flag" :size="13" /> Open challenges</h2>
+                <a href="{{ route('challenges') }}" wire:navigate class="text-xs font-semibold text-brand hover:underline">See all</a>
+            </div>
+            <div class="flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 md:px-0 [scrollbar-width:none]">
+                @foreach ($openChallenges as $c)
+                    <article wire:key="oc{{ $c->id }}" class="flex w-[84%] max-w-[420px] flex-none snap-start flex-col rounded-2xl border border-tint-2 bg-gradient-to-br from-tint to-white p-3.5 {{ $openChallenges->count() === 1 ? 'md:w-full md:max-w-none' : '' }}">
+                        <a href="{{ route('challenges.show', $c) }}" wire:navigate class="block">
+                            <div class="meta"><x-avatar :user="$c->owner" :size="20" /><b class="truncate font-semibold text-ink">{{ $c->owner->name }}<x-verified :user="$c->owner" /></b><span class="dot"></span><span class="flex-none">{{ $c->created_at->diffForHumans(null, true, true) }}</span></div>
+                            <h3 class="mt-2 font-display text-[16px] leading-snug font-semibold tracking-tight">{{ $c->title }}</h3>
+                            <p class="mt-1 line-clamp-2 text-[13px] text-muted">{{ $c->brief }}</p>
+                        </a>
+                        <div class="mt-3 flex items-center gap-2">
+                            <a href="{{ route('ideas.create', ['challenge' => $c->id]) }}" wire:navigate class="btn btn-primary btn-sm">Answer</a>
+                            <span class="chip chip-ghost">{{ $c->ideas_count }} {{ Str::plural('idea', $c->ideas_count) }}</span>
+                            @if ($c->deadline)<span class="ml-auto text-xs text-muted">{{ $c->daysLeft() }}d left</span>@endif
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @forelse ($ideas as $idea)
         <x-idea-card :idea="$idea" :me="$me" />
     @empty

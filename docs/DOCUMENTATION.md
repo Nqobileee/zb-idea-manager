@@ -61,6 +61,7 @@ flowchart LR
 
 ### For everyone
 - **Sign in** with just an email address for now: a valid address is enough and the account is created on the spot (no code, no password). When `IDEAS_REQUIRE_CODE=true` a 6-digit code is emailed first. The session lasts until sign-out. Your account is created the first time you sign in, and you can add your role, department and photo under *Edit profile*.
+- **Open challenges at the top of Home.** A newly posted challenge appears above the ideas as a swipeable card with an **Answer** button, until its deadline passes. Hidden while you search or filter.
 - **Home feed** with *For you* (department, engagement, challenge ideas, freshness) and *Latest*; filter by stage and challenge; search.
 - **Idea cards** with author, blue tick for executives, stage tag, summary, image, challenge, documents and like / comment / share / save.
 - **Idea page** with stage tracker, images, full text, downloadable documents and comments.
@@ -70,6 +71,13 @@ flowchart LR
 - **Activity** for likes, comments, approvals, stage changes and new challenges, with an unread badge.
 - **Members and profiles** with a photo, bio, their ideas and (on your own profile) saved ideas.
 - **WhatsApp** to link your number, post ideas, check your ideas, see top ideas and get notified.
+
+- **Pipeline** (below Members, for everyone). Two views of every project from ideation to shipping:
+  - **Board**: five columns (Idea, Prototype, Demo, Pilot, Launched). Drag a card to another column, or use **Move to**. The author, tagged members and executives can move a project.
+  - **Projects**: one card per project with its **pending** items flowing down, a **timeline** of updates and stage moves, a shared **note**, and the **team** (author plus tagged members). You can tick items, add one, save the note and tag members right on the card.
+  - Filters: a challenge, and **Mine** (projects you wrote or are tagged on).
+- **Project page** (`/projects/{idea}`): reached by clicking a card. It has a **View original post** link, the team and note, and three tabs: **Updates** (progress notes plus automatic "moved from X to Y" entries), **Pending** (to-do items with optional due dates, overdue ones in red, done ones listed below) and **Comments**.
+- **Tagging.** Authors, executives and already-tagged members can tag any member on a project. The tagged person is notified and can then post updates, manage pending items, edit the note and move the stage. They still cannot edit or delete the original post.
 
 ### For executives
 - **AI ranking** against a chosen challenge with three weight sliders, top five highlighted, approve in one tap, and *Email me the top 5*.
@@ -135,6 +143,9 @@ erDiagram
     CHALLENGES ||--o{ IDEAS : "answered by"
     IDEAS ||--o{ COMMENTS : has
     IDEAS ||--o{ IDEA_FILES : "has images and documents"
+    IDEAS ||--o{ IDEA_UPDATES : "timeline"
+    IDEAS ||--o{ IDEA_TASKS : "pending items"
+    IDEAS }o--o{ USERS : "idea_members (tagged)"
     IDEAS }o--o{ USERS : "idea_likes"
     IDEAS }o--o{ USERS : "idea_saves"
     CONVERSATIONS ||--o{ MESSAGES : contains
@@ -182,6 +193,22 @@ erDiagram
         string path
         string size
     }
+    IDEA_UPDATES {
+        bigint id
+        bigint idea_id
+        bigint user_id
+        string kind
+        text body
+        string from_stage
+        string to_stage
+    }
+    IDEA_TASKS {
+        bigint id
+        bigint idea_id
+        string title
+        date due_date
+        bool done
+    }
     COMMENTS {
         bigint id
         bigint idea_id
@@ -222,6 +249,8 @@ erDiagram
     }
 ```
 
+Pipeline tables: `idea_updates` (progress notes and stage moves), `idea_tasks` (pending items), `idea_members` (tagged members), and a `note` column on `ideas`. Row level security is switched on for the new tables too.
+
 Other tables: `login_codes` (hashed one-time codes with expiry and attempt count), `sent_emails` (the email log), `whatsapp_messages` (message ids for de-duplication, direction, delivery status), plus Laravel's `sessions`, `cache` and `jobs`.
 
 Idea codes are shown as `ZB-IDEA-0141` (from `ideas.num`). Stages are `Idea, Prototype, Demo, Pilot, Launched`; `approved` is a separate flag.
@@ -236,6 +265,14 @@ stateDiagram-v2
     Launched --> [*]
 ```
 
+### Who can do what on a project
+
+| Action | Author | Tagged member | Executive | Everyone else |
+|---|---|---|---|---|
+| Edit or delete the post | yes | no | yes | no |
+| Move stage, post updates, add and tick pending items, edit the note, tag members | yes | yes | yes | read only |
+| Comment, like, save | yes | yes | yes | yes |
+
 ## 5. Pages and routes
 
 | URL | Livewire component | Who |
@@ -249,6 +286,8 @@ stateDiagram-v2
 | `/chat/{conversation?}` | `Chat` | Participants only |
 | `/activity` | `ActivityFeed` | Signed in |
 | `/members`, `/members/{user}` | `Members`, `Profile` | Signed in |
+| `/pipeline` | `Pipeline` (Board and Projects views) | Signed in |
+| `/projects/{idea}` | `ProjectShow` | Signed in; authors, tagged members and executives can change things |
 | `/profile/edit` | `ProfileEdit` | Signed in |
 | `/executive/ranking` | `Admin\Ranking` | Executives |
 | `/executive/insights` | `Admin\Insights` | Executives |
@@ -263,6 +302,8 @@ flowchart TD
     H --> CH[Chat list] --> T[Conversation]
     H --> A[Activity]
     H --> M[Members] --> P[Profile] --> I
+    H --> PL[Pipeline: Board or Projects] --> PR[Project page: updates, pending, comments]
+    PR --> I
     H -->|+| N[New idea]
     L -->|executive| R[AI ranking]
     R --> IN[Insights]

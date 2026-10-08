@@ -7,6 +7,8 @@ use App\Models\Activity;
 use App\Models\Challenge;
 use App\Models\Comment;
 use App\Models\Idea;
+use App\Models\IdeaTask;
+use App\Models\IdeaUpdate;
 use App\Models\SentEmail;
 use App\Models\User;
 use App\Support\Outbox;
@@ -34,14 +36,12 @@ class IdeaActions
     public function update(Idea $idea, User $by, array $data): Idea
     {
         abort_unless($idea->canBeManagedBy($by), 403);
-        $statusChanged = $idea->status !== $data['status'];
+        $from = $idea->status;
         $idea->update([
             'title' => $data['title'], 'summary' => $data['summary'], 'body' => $data['body'] ?: $data['summary'],
             'status' => $data['status'], 'challenge_id' => $data['challenge_id'] ?? null,
         ]);
-        if ($statusChanged && $idea->user_id !== $by->id) {
-            $this->notify($idea->author, 'stage', $by, $idea, $data['status']);
-        }
+        $this->recordStage($idea, $from, $by);
 
         return $idea;
     }
@@ -100,12 +100,88 @@ class IdeaActions
         return $c;
     }
 
+    /** Move an idea to another pipeline stage. The author and executives can do this. */
+    public function moveStage(Idea $idea, User $by, string $stage): void
+    {
+        abort_unless($idea->canContribute($by), 403);
+        abort_unless(in_array($stage, Idea::STATUSES, true), 422, 'Unknown stage.');
+        $from = $idea->status;
+        $idea->update(['status' => $stage]);
+        $this->recordStage($idea, $from, $by);
+    }
+
     public function setStatus(Idea $idea, string $status, User $by): void
     {
-        $idea->update(['status' => $status]);
-        if ($idea->user_id !== $by->id) {
-            $this->notify($idea->author, 'stage', $by, $idea, $status);
+        $this->moveStage($idea, $by, $status);
+    }
+
+    /** Write the "moved from X to Y" line on the project and tell the author if someone else moved it. */
+    private function recordStage(Idea $idea, string $from, User $by): void
+    {
+        if ($from === $idea->status) {
+            return;
         }
+        IdeaUpdate::create(['idea_id' => $idea->id, 'user_id' => $by->id, 'kind' => 'stage', 'from_stage' => $from, 'to_stage' => $idea->status]);
+        if ($idea->user_id !== $by->id) {
+            $this->notify($idea->author, 'stage', $by, $idea, $idea->status);
+        }
+    }
+
+    public function postUpdate(Idea $idea, User $by, string $body): IdeaUpdate
+    {
+        abort_unless($idea->canContribute($by), 403);
+        $u = IdeaUpdate::create(['idea_id' => $idea->id, 'user_id' => $by->id, 'kind' => 'update', 'body' => trim($body)]);
+        if ($idea->user_id !== $by->id) {
+            $this->notify($idea->author, 'update', $by, $idea, trim($body));
+        }
+
+        return $u;
+    }
+
+    public function addTask(Idea $idea, User $by, string $title, ?string $due = null): IdeaTask
+    {
+        abort_unless($idea->canContribute($by), 403);
+
+        return IdeaTask::create(['idea_id' => $idea->id, 'user_id' => $by->id, 'title' => trim($title), 'due_date' => $due ?: null]);
+    }
+
+    public function toggleTask(IdeaTask $task, User $by): void
+    {
+        abort_unless($task->idea->canContribute($by), 403);
+        $task->update(['done' => ! $task->done, 'done_at' => $task->done ? null : now()]);
+    }
+
+    public function deleteTask(IdeaTask $task, User $by): void
+    {
+        abort_unless($task->idea->canContribute($by), 403);
+        $task->delete();
+    }
+
+    public function saveNote(Idea $idea, User $by, ?string $note): void
+    {
+        abort_unless($idea->canContribute($by), 403);
+        $idea->update(['note' => trim((string) $note) ?: null]);
+    }
+
+    /** Tag a member on the project. They are told, and can then help with it. */
+    public function tag(Idea $idea, User $by, User $member): void
+    {
+        abort_unless($idea->canContribute($by), 403);
+        if ($idea->members->contains('id', $member->id) || $member->id === $idea->user_id) {
+            return;
+        }
+        $idea->members()->attach($member->id, ['added_by' => $by->id]);
+        $idea->load('members');
+        if ($member->id !== $by->id) {
+            $this->notify($member, 'tag', $by, $idea, $idea->title);
+        }
+    }
+
+    public function untag(Idea $idea, User $by, User $member): void
+    {
+        abort_unless($idea->canContribute($by), 403);
+        $idea->members()->detach($member->id);
+        $idea->load('members');
     }
 
     public function approve(Idea $idea, User $by, ?string $note = null): void
