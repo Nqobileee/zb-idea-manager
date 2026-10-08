@@ -1,0 +1,14 @@
+/node_modules
+/android
+/tests
+/prototype
+/docs
+/posts
+/mobile
+/ZB-Logo.webp
+/database/schema
+/storage/logs
+/storage/framework/views
+.env
+.env.example
+*.md

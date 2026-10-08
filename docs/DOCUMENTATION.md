@@ -666,6 +666,32 @@ Checklist
 6. HTTPS everywhere. Proxy the websocket path (`/app`) to Reverb and set `REVERB_SCHEME=https`, `REVERB_PORT=443`.
 7. Point the Android app's `server.url` and the Meta webhook at the same domain.
 
+### Deploying on Vercel (what works and what does not)
+
+Vercel does not run PHP by itself. The repository includes `vercel.json`, `api/index.php` and `.vercelignore`, which use the community **vercel-php** runtime so the same Laravel app runs as a serverless function. The build step (`npm run build`) creates the CSS and JavaScript in `public/`, which Vercel serves as static files.
+
+**In the Vercel project settings:** Framework Preset **Other**; leave the build and output settings as the file sets them. Then add these **Environment Variables** (values are never committed):
+
+| Variable | Value |
+|---|---|
+| `APP_KEY` | Run `php artisan key:generate --show` locally and paste the result |
+| `APP_URL` | Your Vercel address, for example `https://zb-idea-manager.vercel.app` |
+| `DB_CONNECTION` | `pgsql` |
+| `POSTGRES_URL_NON_POOLING` | The Supabase **session pooler** string (port 5432). Or `POSTGRES_URL` for the pooled one |
+| `DB_SSLMODE` | `require` |
+| `IDEAS_REQUIRE_CODE`, `IDEAS_ALLOW_ROLE_CHOICE`, `IDEAS_EMAIL_DOMAIN` | As in the table above |
+| `IDEAS_UPLOAD_DISK`, `SUPABASE_*` | Only if you use Supabase Storage (recommended on Vercel) |
+
+Run `php artisan migrate` from your own computer against Supabase; Vercel does not run migrations.
+
+**Limits you must know about**
+- **No realtime.** A serverless function cannot hold a websocket open, so Reverb cannot run on Vercel. The app still works fully, but chat messages and notification badges update when you act or refresh, not live. The config turns broadcasting off (`BROADCAST_CONNECTION=null`) and the page script skips Reverb when no key is set.
+- **No background worker.** Queued jobs run immediately (`QUEUE_CONNECTION=sync`).
+- **Files vanish.** Only `/tmp` is writable and it is wiped between requests, so uploads must go to Supabase Storage (`IDEAS_UPLOAD_DISK=supabase`). Livewire's temporary upload step may still fail across function instances; test an image upload before relying on it.
+- **Cold starts** add a short delay to the first request after quiet periods.
+
+For the full experience (live chat, background jobs, reliable uploads) host the Laravel app on a PHP host such as Laravel Cloud, Forge, Railway, Render or Fly.io, keep Supabase as the database, and point the Android app and WhatsApp webhook at that address. Vercel is fine for a pilot of the web app.
+
 Do not run `migrate:fresh` in production: it deletes all data. `php artisan migrate --force` is safe, it only adds new tables and columns.
 
 ## 13. Configuration reference
