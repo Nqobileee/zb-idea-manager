@@ -273,9 +273,9 @@ select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .sim{font-size:12.5px;color:var(--muted);margin-bottom:22px;display:flex;gap:6px;align-items:center}
 .rkl{display:grid;gap:10px}
 .rk{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:16px;padding:18px;border:1px solid var(--line);border-radius:20px;align-items:center}
-.rk.top{border-color:var(--tint-2);background:linear-gradient(100deg,var(--tint),var(--bg) 55%)}
+.rk.first{border-color:var(--tint-2);background:linear-gradient(100deg,var(--tint),var(--bg) 55%)}
 .rk-n{font-family:var(--f-display);font-size:36px;font-weight:800;color:var(--green);letter-spacing:-.04em;text-align:center;font-variant-numeric:tabular-nums}
-.rk:not(.top) .rk-n{font-size:22px;color:var(--muted)}
+.rk:not(.first) .rk-n{font-size:22px;color:var(--muted)}
 .rk-title{font-family:var(--f-display);font-size:18px;font-weight:650;letter-spacing:-.015em;line-height:1.25;margin:6px 0 10px;display:block;text-wrap:balance}
 .rk-title:hover{color:var(--green)}
 .bars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
@@ -885,7 +885,7 @@ function vRanking(){
 function rankList(){
   const list=scoreAll(S.rank.ch);
   if(!list.length) return `<div class="empty"><b>No ideas to rank yet</b></div>`;
-  const row=(x,n,top)=>{const u=U[x.i.author];return `<div class="rk ${top?'top':''}"><div class="rk-n">${n}</div><div class="min0"><div class="meta">${plink(u,24)}<span class="dot"></span><span class="trunc">${esc(u.dept)}</span>${tag(x.i.status)}</div>
+  const row=(x,n,top)=>{const u=U[x.i.author];return `<div class="rk ${top?'first':''}"><div class="rk-n">${n}</div><div class="min0"><div class="meta">${plink(u,24)}<span class="dot"></span><span class="trunc">${esc(u.dept)}</span>${tag(x.i.status)}</div>
    <button class="rk-title" data-a="go" data-r="idea" data-id="${x.i.id}">${esc(x.i.title)}</button>
    <div class="bars">${mb('Fits what we asked',x.rel)}${mb('Likes and comments',x.eng)}${mb('Idea quality',x.q)}</div>${x.outside?`<div style="margin-top:10px"><span class="chip ghost">Matched from outside this challenge</span></div>`:''}</div>
    <div class="rk-side"><div class="score">${x.total}<small>/100</small></div>${x.i.approved?`<span class="chip ok">${icon('check',13)} Approved</span>`:`<button class="btn primary sm" data-a="approve" data-id="${x.i.id}">${icon('check',15)} Approve</button>`}</div></div>`};
