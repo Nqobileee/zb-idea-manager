@@ -31,6 +31,49 @@ class IdeaActions
         ]);
     }
 
+    public function update(Idea $idea, User $by, array $data): Idea
+    {
+        abort_unless($idea->canBeManagedBy($by), 403);
+        $statusChanged = $idea->status !== $data['status'];
+        $idea->update([
+            'title' => $data['title'], 'summary' => $data['summary'], 'body' => $data['body'] ?: $data['summary'],
+            'status' => $data['status'], 'challenge_id' => $data['challenge_id'] ?? null,
+        ]);
+        if ($statusChanged && $idea->user_id !== $by->id) {
+            $this->notify($idea->author, 'stage', $by, $idea, $data['status']);
+        }
+
+        return $idea;
+    }
+
+    public function removeFile(Idea $idea, User $by, int $fileId): void
+    {
+        abort_unless($idea->canBeManagedBy($by), 403);
+        $file = $idea->files()->findOrFail($fileId);
+        $this->forgetStoredFile($file);
+        $file->delete();
+    }
+
+    public function delete(Idea $idea, User $by): void
+    {
+        abort_unless($idea->canBeManagedBy($by), 403);
+        foreach ($idea->files as $file) {
+            $this->forgetStoredFile($file);
+        }
+        $idea->delete(); // likes, saves, comments, files and activity rows are removed by the database
+    }
+
+    private function forgetStoredFile(\App\Models\IdeaFile $file): void
+    {
+        if ($file->path) {
+            try {
+                \Illuminate\Support\Facades\Storage::disk(config('ideas.upload_disk'))->delete($file->path);
+            } catch (\Throwable $e) {
+                report($e); // a storage hiccup must not block deleting the post
+            }
+        }
+    }
+
     public function toggleLike(Idea $idea, User $user): bool
     {
         $res = $idea->likers()->toggle($user->id);

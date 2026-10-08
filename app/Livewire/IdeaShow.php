@@ -56,6 +56,13 @@ class IdeaShow extends Component
         $this->dispatch('toast', message: 'Approved. Email sent to '.$this->idea->author->email);
     }
 
+    public function deleteIdea(IdeaActions $actions)
+    {
+        $actions->delete($this->idea, auth()->user());
+
+        return $this->redirectRoute('home', navigate: true);
+    }
+
     public function messageAuthor()
     {
         $conv = Conversation::between(auth()->user(), $this->idea->author);

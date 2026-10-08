@@ -63,6 +63,12 @@ class Idea extends Model
         return $this->files()->where('kind', 'image');
     }
 
+    /** The author can edit or delete their own idea; executives can too. */
+    public function canBeManagedBy(?User $user): bool
+    {
+        return $user && ($user->id === $this->user_id || $user->is_admin);
+    }
+
     public function getCodeAttribute(): string
     {
         return 'ZB-IDEA-'.str_pad((string) $this->num, 4, '0', STR_PAD_LEFT);

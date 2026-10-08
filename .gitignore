@@ -30,3 +30,5 @@ Thumbs.db
 /android/app/build
 /android/.gradle
 /android/local.properties
+
+/.env.laravel-cloud

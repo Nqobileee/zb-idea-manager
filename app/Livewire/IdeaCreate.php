@@ -18,6 +18,8 @@ class IdeaCreate extends Component
 {
     use WithFileUploads;
 
+    public ?int $ideaId = null;
+
     public string $title = '';
 
     public string $summary = '';
@@ -32,6 +34,24 @@ class IdeaCreate extends Component
     public array $docs = [];
 
     public array $images = [];
+
+    public function mount(?Idea $idea = null): void
+    {
+        if ($idea?->exists) {
+            abort_unless($idea->canBeManagedBy(auth()->user()), 403);
+            $this->ideaId = $idea->id;
+            $this->title = $idea->title;
+            $this->summary = $idea->summary;
+            $this->body = $idea->body === $idea->summary ? '' : $idea->body;
+            $this->status = $idea->status;
+            $this->challenge = $idea->challenge_id;
+        }
+    }
+
+    public function removeExisting(int $fileId, IdeaActions $actions): void
+    {
+        $actions->removeFile(Idea::findOrFail($this->ideaId), auth()->user(), $fileId);
+    }
 
     protected function rules(): array
     {
@@ -61,10 +81,13 @@ class IdeaCreate extends Component
     public function save(IdeaActions $actions)
     {
         $this->validate();
-        $idea = $actions->create(auth()->user(), [
+        $data = [
             'title' => $this->title, 'summary' => $this->summary, 'body' => $this->body,
             'status' => $this->status, 'challenge_id' => $this->challenge,
-        ]);
+        ];
+        $idea = $this->ideaId
+            ? $actions->update(Idea::findOrFail($this->ideaId), auth()->user(), $data)
+            : $actions->create(auth()->user(), $data);
         foreach ($this->docs as $f) {
             IdeaFile::create(['idea_id' => $idea->id, 'kind' => 'doc', 'name' => $f->getClientOriginalName(), 'path' => $f->store('ideas/docs', config('ideas.upload_disk')), 'size' => $this->human($f->getSize())]);
         }
@@ -82,6 +105,9 @@ class IdeaCreate extends Component
 
     public function render()
     {
-        return view('livewire.idea-create', ['challenges' => Challenge::orderBy('title')->get()]);
+        return view('livewire.idea-create', [
+            'challenges' => Challenge::orderBy('title')->get(),
+            'existing' => $this->ideaId ? IdeaFile::where('idea_id', $this->ideaId)->get() : collect(),
+        ])->title($this->ideaId ? 'Edit idea' : 'New idea');
     }
 }

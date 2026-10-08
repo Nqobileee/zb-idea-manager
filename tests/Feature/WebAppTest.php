@@ -115,6 +115,58 @@ class WebAppTest extends TestCase
         $this->assertSame($idea->num, Idea::max('num'));
     }
 
+    public function test_author_can_edit_their_idea_and_others_cannot(): void
+    {
+        $me = $this->employee();
+        $mine = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Old title', 'summary' => 'Old summary', 'body' => 'Old body', 'status' => 'Idea']);
+
+        $this->actingAs($me);
+        Livewire::test(IdeaCreate::class, ['idea' => $mine])
+            ->assertSet('title', 'Old title')
+            ->set('title', 'New title')->set('summary', 'New summary')->set('status', 'Prototype')
+            ->call('save')->assertHasNoErrors()->assertRedirect();
+        $mine->refresh();
+        $this->assertSame('New title', $mine->title);
+        $this->assertSame('Prototype', $mine->status);
+        $this->assertSame($me->id, $mine->user_id);
+
+        $other = User::where('id', '!=', $me->id)->where('is_admin', false)->first();
+        $this->actingAs($other)->get('/ideas/'.$mine->id.'/edit')->assertForbidden();
+    }
+
+    public function test_author_can_delete_their_idea_with_its_files_and_comments(): void
+    {
+        Storage::fake('public');
+        $me = $this->employee();
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Doomed', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        Storage::disk('public')->put('ideas/docs/x.pdf', 'pdf');
+        $idea->files()->create(['kind' => 'doc', 'name' => 'x.pdf', 'path' => 'ideas/docs/x.pdf']);
+        $idea->comments()->create(['user_id' => $me->id, 'body' => 'hi']);
+
+        $this->actingAs($me);
+        Livewire::test(IdeaShow::class, ['idea' => $idea])->call('deleteIdea')->assertRedirect(route('home'));
+
+        $this->assertDatabaseMissing('ideas', ['id' => $idea->id]);
+        $this->assertDatabaseMissing('comments', ['idea_id' => $idea->id]);
+        $this->assertDatabaseMissing('idea_files', ['idea_id' => $idea->id]);
+        Storage::disk('public')->assertMissing('ideas/docs/x.pdf');
+    }
+
+    public function test_only_author_or_executive_can_delete(): void
+    {
+        $me = $this->employee();
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Mine', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        $stranger = User::where('id', '!=', $me->id)->where('is_admin', false)->first();
+
+        $this->actingAs($stranger);
+        Livewire::test(IdeaShow::class, ['idea' => $idea])->call('deleteIdea')->assertForbidden();
+        $this->assertDatabaseHas('ideas', ['id' => $idea->id]);
+
+        $this->actingAs($this->executive());
+        Livewire::test(IdeaShow::class, ['idea' => $idea])->call('deleteIdea')->assertRedirect();
+        $this->assertDatabaseMissing('ideas', ['id' => $idea->id]);
+    }
+
     public function test_executive_pages_are_forbidden_to_employees(): void
     {
         $this->actingAs($this->employee())->get('/executive/ranking')->assertForbidden();

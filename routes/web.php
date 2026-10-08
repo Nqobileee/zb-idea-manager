@@ -36,6 +36,7 @@ Route::post('/logout', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/', Feed::class)->name('home');
     Route::get('/ideas/create', IdeaCreate::class)->name('ideas.create');
+    Route::get('/ideas/{idea}/edit', IdeaCreate::class)->name('ideas.edit');
     Route::get('/ideas/{idea}', IdeaShow::class)->name('ideas.show');
 
     Route::get('/challenges', Challenges::class)->name('challenges');
