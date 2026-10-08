@@ -66,10 +66,10 @@ class IdeaCreate extends Component
             'status' => $this->status, 'challenge_id' => $this->challenge,
         ]);
         foreach ($this->docs as $f) {
-            IdeaFile::create(['idea_id' => $idea->id, 'kind' => 'doc', 'name' => $f->getClientOriginalName(), 'path' => $f->store('ideas/docs', 'public'), 'size' => $this->human($f->getSize())]);
+            IdeaFile::create(['idea_id' => $idea->id, 'kind' => 'doc', 'name' => $f->getClientOriginalName(), 'path' => $f->store('ideas/docs', config('ideas.upload_disk')), 'size' => $this->human($f->getSize())]);
         }
         foreach ($this->images as $f) {
-            IdeaFile::create(['idea_id' => $idea->id, 'kind' => 'image', 'name' => $f->getClientOriginalName(), 'path' => $f->store('ideas/images', 'public'), 'size' => $this->human($f->getSize())]);
+            IdeaFile::create(['idea_id' => $idea->id, 'kind' => 'image', 'name' => $f->getClientOriginalName(), 'path' => $f->store('ideas/images', config('ideas.upload_disk')), 'size' => $this->human($f->getSize())]);
         }
 
         return $this->redirectRoute('ideas.show', $idea, navigate: true);

@@ -25,7 +25,7 @@ class WebAppTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed();
+        $this->seed(\Tests\Fixtures\SampleDataSeeder::class);
     }
 
     private function employee(): User
@@ -56,10 +56,19 @@ class WebAppTest extends TestCase
         $this->assertAuthenticatedAs($this->employee());
     }
 
-    public function test_only_work_emails_can_sign_in(): void
+    public function test_any_valid_email_can_sign_in_but_junk_cannot(): void
     {
-        Livewire::test(Login::class)->set('email', 'someone@gmail.com')->call('sendCode')->assertSet('step', 'email');
+        Livewire::test(Login::class)->set('email', 'not-an-email')->call('sendCode')->assertSet('step', 'email');
         $this->assertDatabaseCount('login_codes', 0);
+        Livewire::test(Login::class)->set('email', 'someone@gmail.com')->call('sendCode')->assertSet('step', 'code');
+        $this->assertDatabaseCount('login_codes', 1);
+    }
+
+    public function test_domain_restriction_still_works_when_configured(): void
+    {
+        config(['ideas.email_domain' => 'zb.co.zw']);
+        Livewire::test(Login::class)->set('email', 'someone@gmail.com')->call('sendCode')->assertSet('step', 'email');
+        Livewire::test(Login::class)->set('email', 'someone@zb.co.zw')->call('sendCode')->assertSet('step', 'code');
     }
 
     public function test_feed_shows_seeded_ideas_with_images(): void
@@ -139,6 +148,21 @@ class WebAppTest extends TestCase
         $list = app(\App\Services\Ranking::class)->rank($challenge);
         $this->assertTrue($list->first()['idea']->challenge_id === $challenge->id);
         $this->assertSame($list->pluck('total')->sortDesc()->values()->all(), $list->pluck('total')->all());
+    }
+
+    public function test_role_choice_at_sign_in_for_now(): void
+    {
+        $page = Livewire::test(Login::class)->set('email', 'new.person@example.com')->set('role', 'admin')->call('sendCode');
+        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
+        $page->set('code', $m[1])->call('verify');
+        $this->assertTrue(User::where('email', 'new.person@example.com')->firstOrFail()->is_admin);
+
+        auth()->logout();
+        config(['ideas.allow_role_choice' => false]);
+        $page = Livewire::test(Login::class)->set('email', 'other.person@example.com')->set('role', 'admin')->call('sendCode');
+        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
+        $page->set('code', $m[1])->call('verify');
+        $this->assertFalse(User::where('email', 'other.person@example.com')->firstOrFail()->is_admin);
     }
 
     public function test_chat_send_and_privacy(): void

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -46,7 +47,7 @@ class User extends Authenticatable
 
     public function getAvatarUrlAttribute(): ?string
     {
-        return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;
+        return $this->avatar_path ? Storage::disk(config('ideas.upload_disk'))->url($this->avatar_path) : null;
     }
 
     public function unreadActivityCount(): int

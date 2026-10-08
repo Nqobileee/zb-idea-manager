@@ -4,7 +4,7 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 **Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, MySQL. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
 
-> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 22 automated tests pass, including the WhatsApp flows through the real webhook. The original static prototype is kept in `prototype/` for reference.
+> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 26 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
 >
 > **Not verified here.** The Android project is generated but was not compiled on the machine this was built on (no Android SDK). The WhatsApp bot was tested against the webhook only, not against a live Meta account. See sections 11 and 12 for the steps.
 
@@ -34,10 +34,19 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 | Role | Who | What they can do |
 |---|---|---|
-| **Employee** | Any verified `@zb.co.zw` user | Post ideas with images and documents, like, comment, share, save, chat, answer challenges, use the WhatsApp bot |
+| **Employee** | Anyone who signs in | Post ideas with images and documents, like, comment, share, save, chat, answer challenges, use the WhatsApp bot |
 | **Executive** | Users with `is_admin = true`, shown with a blue verified tick | Everything an employee can do, plus set challenges, AI ranking, approve ideas, change an idea's stage, insights, user list, email log, approve from WhatsApp |
 
-Executive status is stored in the database and checked on the server. It cannot be chosen at sign-in. An executive can promote or demote other users on the *All users* page.
+**For now, anyone can sign in with any email address and can choose to sign in as Employee or Executive admin** (see "Temporary open access" below). Executive status is stored in the database and checked on the server, and an executive can promote or demote other users on the *All users* page.
+
+**Temporary open access.** While the app is being set up, two switches are on so that anyone can try every role:
+
+| Switch | Now | Later |
+|---|---|---|
+| `IDEAS_EMAIL_DOMAIN` | empty: any email address can sign in | `zb.co.zw` to restrict to ZB staff |
+| `IDEAS_ALLOW_ROLE_CHOICE` | `true`: the sign-in page asks Employee or Executive admin and applies it | `false`: executive rights are only changed by an executive on *All users* |
+
+Turn both off before the app holds real decisions: with them on, anyone can approve ideas.
 
 ```mermaid
 flowchart LR
@@ -50,7 +59,7 @@ flowchart LR
 ## 2. Features
 
 ### For everyone
-- **Sign in** with a ZB work email and a 6-digit code sent to it. No passwords. The session lasts until sign-out.
+- **Sign in** with any email address and a 6-digit code sent to it. No passwords. The session lasts until sign-out. Your account is created the first time you sign in, and you can add your role, department and photo under *Edit profile*.
 - **Home feed** with *For you* (department, engagement, challenge ideas, freshness) and *Latest*; filter by stage and challenge; search.
 - **Idea cards** with author, blue tick for executives, stage tag, summary, image, challenge, documents and like / comment / share / save.
 - **Idea page** with stage tracker, images, full text, downloadable documents and comments.
@@ -378,7 +387,7 @@ Staff who are away from a laptop can use the Idea Manager from WhatsApp.
 
 | Say | What happens | Who |
 |---|---|---|
-| `hi` | If not linked, asks for your work email, emails a code, you reply with it. If linked, shows the menu. | All |
+| `hi` | If not linked, asks for your email, emails a code, you reply with it. If linked, shows the menu. | All |
 | `new idea` | Asks for title (max 90 characters), summary (max 300), details, challenge (list), then Post / Edit / Cancel. Photos and documents are added later on the web. | All |
 | `my ideas` | Your latest ideas with stage, likes, comments and approval | All |
 | `top ideas` | Top five with a **Like** button each | All |
@@ -415,8 +424,8 @@ sequenceDiagram
     participant B as Bot
     participant C as AuthCodes
     U->>B: hi
-    B->>U: Reply with your ZB work email
-    U->>B: name.surname@zb.co.zw
+    B->>U: Reply with your email address
+    U->>B: you@example.com
     B->>C: Send code by email
     B->>U: I sent a 6-digit code
     U->>B: 482913
@@ -578,15 +587,19 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Edit `.env`: database settings (create an empty database `zb_ideas`), and for a demo set `IDEAS_ACCEPT_ANY_CODE=true` so any 6 digits sign you in. Then:
+Edit `.env`: set the `DB_*` values for an empty MySQL database called `zb_ideas`. For a quick try you can also set `IDEAS_ACCEPT_ANY_CODE=true` so any 6 digits sign you in. Then:
 
 ```bash
-php artisan migrate --seed       # tables plus the sample people, challenges, ideas and chats
+php artisan migrate              # creates the empty tables. No data is added.
 php artisan storage:link         # make uploads reachable
 npm install
 npm run build                    # or: npm run dev
 php artisan serve                # http://localhost:8000
 ```
+
+**Database template.** `database/schema/zb_ideas.mysql.sql` contains the same empty tables as plain MySQL statements, so the database can also be created by importing that file (for example in phpMyAdmin) into an empty `zb_ideas` database. Use **either** the SQL file **or** `php artisan migrate`, not both. After changing a migration, regenerate the file with `php artisan schema:sql`.
+
+The database starts empty. Open the site, enter any email and the 6-digit code, and your account is created. The first people to sign in choose Employee or Executive admin on the sign-in page. Executives can then post a challenge, and everyone can post ideas.
 
 For realtime, generate Reverb keys (`php artisan reverb:install` or fill the `REVERB_*` values yourself) and run in extra terminals:
 
@@ -595,9 +608,8 @@ php artisan reverb:start
 php artisan queue:work           # only needed if you add queued jobs
 ```
 
-Sign in as `tinashe.moyo@zb.co.zw` (an employee) or `tapiwa.dube@zb.co.zw` (an executive). The seeded data comes from `database/seeders/data/sample.json`.
+The code is emailed through your mail transport. In the `local` environment it is also written to `storage/logs/laravel.log` and to the *Email log* (executive page).
 
-Without the demo switch, the code is written to the *Email log* (executive page) and to `storage/logs/laravel.log` in the `local` environment.
 
 ## 12. Deployment
 
@@ -623,15 +635,16 @@ Checklist
 6. HTTPS everywhere. Proxy the websocket path (`/app`) to Reverb and set `REVERB_SCHEME=https`, `REVERB_PORT=443`.
 7. Point the Android app's `server.url` and the Meta webhook at the same domain.
 
-Do not run `migrate:fresh --seed` in production: it deletes everything and loads the demo data. Replace the seeder with a real user import (or a directory sync) first.
+Do not run `migrate:fresh` in production: it deletes all data. `php artisan migrate --force` is safe, it only adds new tables and columns.
 
 ## 13. Configuration reference
 
 | Variable | Purpose |
 |---|---|
 | `DB_*` | MySQL connection |
-| `IDEAS_EMAIL_DOMAIN` | Allowed email domain (default `zb.co.zw`) |
+| `IDEAS_EMAIL_DOMAIN` | Restrict sign-in to one domain, for example `zb.co.zw`. **Empty means any email can sign in (current setting).** |
 | `IDEAS_ACCEPT_ANY_CODE` | Demo only: accept any 6 digits. **Keep false in production.** |
+| `IDEAS_ALLOW_ROLE_CHOICE` | Temporary: the sign-in page lets people pick Employee or Executive admin. **Set false before real use.** |
 | `IDEAS_AUTO_PROVISION` | Create an account on first valid sign-in. Turn off once you import staff or sync a directory |
 | `MAIL_*` | Mail transport. Codes and approvals are always saved to the email log, and sent when a real mailer is configured |
 | `BROADCAST_CONNECTION` | `reverb` |
@@ -651,7 +664,7 @@ Fixed limits are in `config/ideas.php`: code lifetime 10 minutes, 5 attempts, 30
 php artisan test
 ```
 
-22 tests run against an in-memory SQLite database:
+26 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
 
 | Area | What is checked |
 |---|---|
@@ -659,6 +672,7 @@ php artisan test
 | Sign in | Wrong code rejected, right code signs in, non-ZB emails refused |
 | Feed and ideas | Seeded ideas and images render, search, like toggles and notifies the author, comments notify, posting with a document and an image |
 | Executive | Approval emails the author and adds an Activity item, the digest is logged, employees cannot approve, ranking order |
+| Empty database | The default seeder adds nothing, and every page renders with no data at all |
 | Chat | Sending a message |
 | WhatsApp | Webhook handshake, unsigned requests rejected, linking by emailed code, posting an idea by chat, cancel, employees blocked from executive commands, executive approval end to end, stop and unlink, lockout after wrong codes, duplicate deliveries ignored |
 
@@ -666,10 +680,10 @@ Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.
 
 ## 15. Security and privacy
 
-- Only `@zb.co.zw` addresses can sign in, with hashed, expiring, attempt-limited codes. Sessions are regenerated on login.
+- Sign-in uses hashed, expiring, attempt-limited codes sent to the email address, and sessions are regenerated on login. Domain restriction is available (`IDEAS_EMAIL_DOMAIN`) but off for now. **While the temporary role choice is on, anyone can make themselves an executive.**
 - Executive rights come from the database and are enforced by middleware and inside `IdeaActions::approve()`. WhatsApp approvals pass through the same check.
 - Webhook requests are verified with HMAC-SHA256, de-duplicated by message id and rate limited per number.
-- A WhatsApp number is linked only after the user proves they own the work email. Unlinked numbers can do nothing but link.
+- A WhatsApp number is linked only after the user proves they own the email. Unlinked numbers can do nothing but link.
 - Chat channels are authorised per participant; opening someone else's conversation returns 403.
 - Uploads are limited by type and size and stored on the `public` disk. For stricter control, move documents to a private disk and serve them through a signed route, and add malware scanning.
 - Keep customer data out of ideas and chats. Phone numbers and message ids are the only WhatsApp data stored; message text is not kept.
@@ -689,7 +703,8 @@ app/
 config/ideas.php          app settings and WhatsApp settings
 database/
   migrations/             schema
-  seeders/                DatabaseSeeder + data/sample.json
+  schema/zb_ideas.mysql.sql   empty MySQL template (generated by `php artisan schema:sql`)
+  seeders/                DatabaseSeeder (intentionally empty)
 resources/
   css/app.css             Tailwind theme and small component classes
   js/app.js, echo.js      Echo / Reverb client
@@ -697,11 +712,11 @@ resources/
   views/components/       icon, avatar, verified, stage, idea-card, idea-actions
   views/livewire/         page templates
 routes/                   web.php, channels.php
-tests/Feature/            WebAppTest, WhatsappBotTest
+tests/Feature/            WebAppTest, WhatsappBotTest, EmptyDatabaseTest
+tests/Fixtures/           sample data used only by the tests
 android/                  Capacitor Android project
 capacitor.config.json     Android app settings
 mobile/www/               offline fallback page for the Android shell
-public/images/ideas/      sample post images
 prototype/                the original single-file prototype, kept for reference
 docs/                     this document
 ```
@@ -710,7 +725,7 @@ docs/                     this document
 
 **Before go-live**
 - Set a real mail transport (`MAIL_*`) and the other production environment values.
-- Replace auto-provisioned accounts with an import or directory sync, and add the real staff list.
+- Turn off the open access switches (`IDEAS_ALLOW_ROLE_CHOICE=false`, set `IDEAS_EMAIL_DOMAIN`), and assign real executives on the *All users* page.
 - Compile and test the Android app on a device and ship a signed build.
 - Register the WhatsApp number, get the `idea_approved` template approved and test with a live account.
 - Move documents to a private disk and add malware scanning.
@@ -720,7 +735,7 @@ docs/                     this document
 - The WhatsApp bot handles text and button taps; photos and documents sent in WhatsApp are not yet attached to ideas (the bot points the user to the web app).
 - WhatsApp notifications are implemented for approvals. Comments, new challenges and a daily top 5 can be added the same way in `IdeaActions::notify()`.
 - Push notifications on Android are not set up (see section 10).
-- Sample like counts in the seed data are capped at seven because likes are real per-user records.
+- Uploaded images and documents live on the server's `public` disk, so back up `storage/app/public` together with the database.
 
 **Suggested plan**
 

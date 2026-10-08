@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class IdeaFile extends Model
 {
@@ -20,7 +21,7 @@ class IdeaFile extends Model
             return null;
         }
 
-        return str_starts_with($this->path, 'images/') ? asset($this->path) : asset('storage/'.$this->path);
+        return Storage::disk(config('ideas.upload_disk'))->url($this->path);
     }
 
     public function getExtAttribute(): string

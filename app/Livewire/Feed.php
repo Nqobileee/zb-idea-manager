@@ -80,7 +80,7 @@ class Feed extends Component
         }
         if (trim($this->search) !== '') {
             $term = '%'.trim($this->search).'%';
-            $q->where(fn ($w) => $w->where('title', 'like', $term)->orWhere('summary', 'like', $term)->orWhere('body', 'like', $term));
+            $q->where(fn ($w) => $w->whereLike('title', $term)->orWhereLike('summary', $term)->orWhereLike('body', $term));
         }
         $all = $q->get();
 

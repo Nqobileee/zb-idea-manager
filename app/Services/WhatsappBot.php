@@ -102,7 +102,7 @@ class WhatsappBot
     private function startLink(WhatsappSession $s): void
     {
         $s->update(['state' => 'link_email', 'pending_email' => null]);
-        $this->wa->text($s->phone, 'Welcome to ZB Ideas. Reply with your ZB work email to link your account.');
+        $this->wa->text($s->phone, 'Welcome to ZB Ideas. Reply with your email address to link your account.');
     }
 
     private function linking(WhatsappSession $s, string $input): void
@@ -139,7 +139,7 @@ class WhatsappBot
 
         if ($s->state === 'link_email') {
             if (! $this->codes->isWorkEmail($input)) {
-                $this->wa->text($s->phone, 'Please send your ZB work email, ending in @'.config('ideas.email_domain').'.');
+                $this->wa->text($s->phone, config('ideas.email_domain') ? 'Please send your ZB work email, ending in @'.config('ideas.email_domain').'.' : 'Please send a valid email address.');
 
                 return;
             }

@@ -18,7 +18,7 @@ class WhatsappBotTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed();
+        $this->seed(\Tests\Fixtures\SampleDataSeeder::class);
     }
 
     /** Send a text or a button tap through the real webhook, the way Meta would. */
@@ -59,7 +59,7 @@ class WhatsappBotTest extends TestCase
     {
         $this->say('hi');
         $this->assertSame('link_email', WhatsappSession::first()->state);
-        $this->say('not-a-zb-email@gmail.com');
+        $this->say('not an email');
         $this->assertSame('link_email', WhatsappSession::first()->state);
         $this->say('tinashe.moyo@zb.co.zw');
         $this->assertSame('link_code', WhatsappSession::first()->state);

@@ -32,7 +32,7 @@ class ProfileEdit extends Component
     public function mount(): void
     {
         $u = auth()->user();
-        $this->fill(['name' => $u->name, 'title' => (string) $u->title, 'dept' => (string) $u->dept, 'bio' => (string) $u->bio, 'phone' => (string) $u->phone, 'whatsappOptIn' => $u->whatsapp_opt_in]);
+        $this->fill(['name' => $u->name, 'title' => (string) $u->title, 'dept' => (string) $u->dept, 'bio' => (string) $u->bio, 'phone' => (string) $u->phone, 'whatsappOptIn' => (bool) ($u->whatsapp_opt_in ?? true)]);
     }
 
     public function save()
@@ -45,9 +45,9 @@ class ProfileEdit extends Component
         $data = ['name' => trim($this->name), 'title' => trim($this->title), 'dept' => trim($this->dept), 'bio' => trim($this->bio), 'whatsapp_opt_in' => $this->whatsappOptIn];
         if ($this->photo) {
             if ($u->avatar_path) {
-                Storage::disk('public')->delete($u->avatar_path);
+                Storage::disk(config('ideas.upload_disk'))->delete($u->avatar_path);
             }
-            $data['avatar_path'] = $this->photo->store('avatars', 'public');
+            $data['avatar_path'] = $this->photo->store('avatars', config('ideas.upload_disk'));
         }
         $u->update($data);
 

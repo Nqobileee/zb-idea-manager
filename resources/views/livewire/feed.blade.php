@@ -43,7 +43,11 @@
     @forelse ($ideas as $idea)
         <x-idea-card :idea="$idea" :me="$me" />
     @empty
-        <div class="py-16 text-center text-muted"><b class="block text-ink">No ideas match</b>Try another search or clear the filters.</div>
+        @if ($search === '' && ! $statuses && $challenge === 'all')
+            <div class="py-16 text-center text-muted"><b class="block text-ink">No ideas yet</b>Be the first to share one.<div class="mt-4"><a href="{{ route('ideas.create') }}" wire:navigate class="btn btn-primary"><x-icon name="plus" :size="16" /> Post an idea</a></div></div>
+        @else
+            <div class="py-16 text-center text-muted"><b class="block text-ink">No ideas match</b>Try another search or clear the filters.</div>
+        @endif
     @endforelse
 
     @if ($total > $ideas->count())

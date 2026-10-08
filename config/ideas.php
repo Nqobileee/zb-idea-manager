@@ -1,14 +1,21 @@
 <?php
 
 return [
-    // Only addresses on this domain can sign in or link WhatsApp.
-    'email_domain' => env('IDEAS_EMAIL_DOMAIN', 'zb.co.zw'),
+    // Restrict sign-in to one email domain. Leave empty to allow any email address (temporary, for the pilot).
+    'email_domain' => env('IDEAS_EMAIL_DOMAIN', ''),
 
     // Demo switch: accept any 6 digits instead of the emailed code. Never enable in production.
     'accept_any_code' => (bool) env('IDEAS_ACCEPT_ANY_CODE', false),
 
     // Create an account the first time a valid work email verifies. Replace with a directory lookup in production.
     'auto_provision' => (bool) env('IDEAS_AUTO_PROVISION', true),
+
+    // TEMPORARY: let people pick Employee or Executive when they sign in. Turn off once real
+    // executives are assigned (then admin rights are only changed on the All users page).
+    'allow_role_choice' => (bool) env('IDEAS_ALLOW_ROLE_CHOICE', true),
+
+    // Where uploaded images, documents and avatars are stored: 'public' (server disk) or 'supabase' (Supabase Storage).
+    'upload_disk' => env('IDEAS_UPLOAD_DISK', 'public'),
 
     'code_ttl_minutes' => 10,
     'max_code_attempts' => 5,

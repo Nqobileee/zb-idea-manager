@@ -84,7 +84,7 @@ class Chat extends Component
             })->filter(fn ($c) => $c->last)->sortByDesc(fn ($c) => $c->last->created_at)->values();
 
         $people = $this->picking
-            ? User::where('id', '!=', $me->id)->when($this->find, fn ($q) => $q->where('name', 'like', '%'.$this->find.'%'))->orderBy('name')->get()
+            ? User::where('id', '!=', $me->id)->when($this->find, fn ($q) => $q->whereLike('name', '%'.$this->find.'%'))->orderBy('name')->get()
             : collect();
 
         return view('livewire.chat', ['conv' => $conv, 'list' => $list, 'people' => $people, 'me' => $me])

@@ -18,13 +18,15 @@ class Login extends Component
 
     public string $code = '';
 
+    public string $role = 'employee';
+
     public ?string $error = null;
 
     public function sendCode(AuthCodes $codes): void
     {
         $this->email = strtolower(trim($this->email));
         if (! $codes->isWorkEmail($this->email)) {
-            $this->error = 'Use your ZB work email, ending in @'.config('ideas.email_domain').'.';
+            $this->error = config('ideas.email_domain') ? 'Use your ZB work email, ending in @'.config('ideas.email_domain').'.' : 'Enter a valid email address.';
 
             return;
         }
@@ -47,11 +49,15 @@ class Login extends Component
 
             return;
         }
-        $user = $codes->userFor($this->email);
+        $wantsAdmin = config('ideas.allow_role_choice') && $this->role === 'admin';
+        $user = $codes->userFor($this->email, $wantsAdmin);
         if (! $user) {
             $this->error = 'We could not find a ZB account for that email.';
 
             return;
+        }
+        if (config('ideas.allow_role_choice') && $user->is_admin !== $wantsAdmin) {
+            $user->update(['is_admin' => $wantsAdmin, 'title' => $wantsAdmin ? 'Executive' : ($user->title ?: 'Employee')]);
         }
         Auth::login($user, remember: true);
         session()->regenerate();
@@ -61,6 +67,6 @@ class Login extends Component
 
     public function render()
     {
-        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code')]);
+        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code'), 'roleChoice' => config('ideas.allow_role_choice')]);
     }
 }

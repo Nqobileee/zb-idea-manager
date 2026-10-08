@@ -22,22 +22,33 @@
                 <form wire:submit="sendCode" class="space-y-4">
                     <div>
                         <h2 class="font-display text-[30px] font-bold tracking-tight">Sign in</h2>
-                        <p class="hint">Use your ZB work account.</p>
+                        <p class="hint">Use your email address.</p>
                     </div>
                     <div>
-                        <label class="lbl" for="email">Work email</label>
-                        <input id="email" type="email" wire:model="email" class="inp" placeholder="name.surname@zb.co.zw" autocomplete="email" autofocus required>
+                        <label class="lbl" for="email">Email address</label>
+                        <input id="email" type="email" wire:model="email" class="inp" placeholder="you@example.com" autocomplete="email" autofocus required>
                     </div>
+                    @if ($roleChoice)
+                        <fieldset>
+                            <legend class="lbl">Sign in as</legend>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach (['employee' => 'Employee', 'admin' => 'Executive admin'] as $v => $l)
+                                    <label @class(['cursor-pointer rounded-xl border px-3 py-2.5 text-center text-sm font-semibold', 'border-brand bg-tint text-brand' => $role === $v, 'border-line' => $role !== $v])><input type="radio" class="sr-only" value="{{ $v }}" wire:model.live="role">{{ $l }}</label>
+                                @endforeach
+                            </div>
+                            <p class="hint mt-1.5">Temporary: anyone can choose either role while the app is being set up.</p>
+                        </fieldset>
+                    @endif
                     @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
                     <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">Email me a code</button>
-                    <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> We only send the code to a ZB address.</p>
+                    <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> We email you a 6-digit code. No password needed.</p>
                 </form>
             @else
                 <form wire:submit="verify" class="space-y-4">
                     <button type="button" wire:click="back" class="hint flex items-center gap-1 hover:text-ink"><x-icon name="back" :size="16" /> Change email</button>
                     <div>
                         <h2 class="font-display text-[30px] font-bold tracking-tight">Check your email</h2>
-                        <p class="hint">We sent a 6-digit code to <b class="text-ink">{{ $email }}</b> to confirm you work at ZB.</p>
+                        <p class="hint">We sent a 6-digit code to <b class="text-ink">{{ $email }}</b>.</p>
                     </div>
                     <div>
                         <label class="lbl" for="code">Verification code</label>

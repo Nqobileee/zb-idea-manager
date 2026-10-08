@@ -13,12 +13,12 @@ Where verified ZB staff post ideas, answer executive challenges and follow ideas
 composer install
 cp .env.example .env && php artisan key:generate
 # set DB_* in .env and IDEAS_ACCEPT_ANY_CODE=true for a demo
-php artisan migrate --seed
+php artisan migrate        # empty tables, no sample data
 php artisan storage:link
 npm install && npm run build
 php artisan serve
 ```
 
-Sign in as `tinashe.moyo@zb.co.zw` (employee) or `tapiwa.dube@zb.co.zw` (executive). In demo mode any 6 digits work.
+The database starts empty. Sign in with any email address and choose Employee or Executive admin (temporary). In demo mode any 6 digits work. An empty MySQL template is also in `database/schema/zb_ideas.mysql.sql`.
 
 Realtime: `php artisan reverb:start`. Tests: `php artisan test`. Android: `npm run android:open` (see the docs).

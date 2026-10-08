@@ -22,7 +22,7 @@ class Users extends Component
 
     public function render()
     {
-        $users = User::withCount('ideas')->when($this->q, fn ($s) => $s->where(fn ($w) => $w->where('name', 'like', "%{$this->q}%")->orWhere('email', 'like', "%{$this->q}%")->orWhere('dept', 'like', "%{$this->q}%")))->orderBy('name')->get();
+        $users = User::withCount('ideas')->when($this->q, fn ($s) => $s->where(fn ($w) => $w->whereLike('name', "%{$this->q}%")->orWhereLike('email', "%{$this->q}%")->orWhereLike('dept', "%{$this->q}%")))->orderBy('name')->get();
 
         return view('livewire.admin.users', ['users' => $users]);
     }

@@ -60,6 +60,22 @@ return [
             'report' => false,
         ],
 
+        // Supabase Storage through its S3-compatible API. Create a PUBLIC bucket and an S3 access key
+        // (Supabase dashboard > Storage > S3 Connection). See docs/DOCUMENTATION.md.
+        'supabase' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_S3_KEY'),
+            'secret' => env('SUPABASE_S3_SECRET'),
+            'region' => env('SUPABASE_S3_REGION', 'us-east-1'),
+            'bucket' => env('SUPABASE_BUCKET', 'uploads'),
+            'endpoint' => env('SUPABASE_S3_ENDPOINT'),
+            'url' => env('SUPABASE_PUBLIC_URL'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'public',
+            'throw' => true,
+            'report' => true,
+        ],
+
     ],
 
     /*

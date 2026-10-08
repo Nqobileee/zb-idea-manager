@@ -13,7 +13,13 @@ class AuthCodes
 {
     public function isWorkEmail(string $email): bool
     {
-        return (bool) preg_match('/^[^@\s]+@'.preg_quote(config('ideas.email_domain'), '/').'$/i', trim($email));
+        $email = trim($email);
+        $domain = config('ideas.email_domain');
+        if (! $domain) {
+            return (bool) filter_var($email, FILTER_VALIDATE_EMAIL);
+        }
+
+        return (bool) preg_match('/^[^@\s]+@'.preg_quote($domain, '/').'$/i', $email);
     }
 
     public function send(string $email): void
