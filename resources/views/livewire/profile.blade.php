@@ -12,9 +12,23 @@
     @if ($user->bio)<p class="mt-3 max-w-[60ch] text-ink-2">{{ $user->bio }}</p>@endif
 
     <div class="mt-6 flex border-b border-line">
-        @foreach (['ideas' => $mine ? 'My ideas' : 'Ideas'] + ($mine ? ['saved' => 'Saved'] : []) as $k => $l)
+        @foreach ($tabs as $k => $l)
             <button wire:click="$set('tab','{{ $k }}')" @class(['px-4 py-3 text-sm font-semibold', 'border-b-2 border-brand text-brand' => $tab === $k, 'text-muted' => $tab !== $k])>{{ $l }}</button>
         @endforeach
     </div>
-    @forelse ($ideas as $idea)<x-idea-card :idea="$idea" :me="$me" />@empty<p class="hint py-8 text-center">Nothing here yet.</p>@endforelse
+    @if ($tab === 'challenges')
+        <div class="grid gap-4 py-5 md:grid-cols-2">
+            @forelse ($challenges as $c)
+                <a href="{{ route('challenges.show', $c) }}" wire:navigate wire:key="ch{{ $c->id }}" class="block rounded-[20px] border border-line p-5 hover:border-tint-2 hover:bg-surface">
+                    <h2 class="font-display text-[19px] leading-tight font-semibold tracking-tight">{{ $c->title }}</h2>
+                    <p class="mt-1.5 line-clamp-3 text-sm text-muted">{{ $c->brief }}</p>
+                    <div class="mt-4 flex flex-wrap gap-2"><span class="chip">{{ $c->ideas_count }} {{ Str::plural('idea', $c->ideas_count) }}</span>@if ($c->deadline)<span class="chip chip-ghost">{{ $c->daysLeft() }} days left · {{ $c->deadline->format('j M') }}</span>@endif</div>
+                </a>
+            @empty
+                <div class="py-8 text-center text-muted md:col-span-2"><p class="hint">{{ $mine ? 'You have not set a challenge yet.' : 'No challenges yet.' }}</p>@if ($mine)<a href="{{ route('challenges.create') }}" wire:navigate class="btn btn-primary mt-4"><x-icon name="plus" :size="16" /> New challenge</a>@endif</div>
+            @endforelse
+        </div>
+    @else
+        @forelse ($ideas as $idea)<x-idea-card :idea="$idea" :me="$me" />@empty<p class="hint py-8 text-center">Nothing here yet.</p>@endforelse
+    @endif
 </div>

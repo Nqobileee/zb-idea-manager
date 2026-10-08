@@ -74,6 +74,18 @@ class Idea extends Model
         return 'ZB-IDEA-'.str_pad((string) $this->num, 4, '0', STR_PAD_LEFT);
     }
 
+    /** Tailwind colour classes for a stage. The same colours are used on post tags and filter chips. */
+    public static function stageClasses(string $status): string
+    {
+        return [
+            'Idea' => 'bg-surface text-muted',
+            'Prototype' => 'bg-[#fbeed3] text-[#8a5a00]',
+            'Demo' => 'bg-[#e0ebf8] text-[#2a5a99]',
+            'Pilot' => 'bg-[#ece5f7] text-[#5b3f9e]',
+            'Launched' => 'bg-brand text-white',
+        ][$status] ?? 'bg-surface text-muted';
+    }
+
     public function paragraphs(): array
     {
         return array_values(array_filter(preg_split('/\R{2,}|\R/', $this->body)));

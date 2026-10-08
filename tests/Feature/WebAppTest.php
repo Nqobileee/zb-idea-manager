@@ -167,6 +167,57 @@ class WebAppTest extends TestCase
         $this->assertDatabaseMissing('ideas', ['id' => $idea->id]);
     }
 
+    public function test_new_accounts_get_no_made_up_role_department_or_bio(): void
+    {
+        config(['ideas.require_code' => false]);
+        Livewire::test(Login::class)->set('email', 'blank.slate@example.com')->set('role', 'admin')->call('sendCode');
+        $u = User::where('email', 'blank.slate@example.com')->firstOrFail();
+        $this->assertNull($u->title);
+        $this->assertNull($u->dept);
+        $this->assertNull($u->bio);
+        $this->assertTrue($u->is_admin);
+    }
+
+    public function test_executive_manages_their_own_challenges(): void
+    {
+        $exec = $this->executive();
+        $this->actingAs($exec);
+        $ch = \App\Models\Challenge::create(['user_id' => $exec->id, 'title' => 'Mine', 'brief' => 'b', 'keywords' => ['a'], 'deadline' => now()->addDays(5)]);
+        $other = \App\Models\Challenge::create(['user_id' => User::where('is_admin', false)->first()->id, 'title' => 'Not mine', 'brief' => 'b', 'keywords' => ['a']]);
+
+        Livewire::test(\App\Livewire\Challenges::class)->assertSet('tab', 'mine')->assertSee('Mine')->assertDontSee('Not mine')
+            ->set('tab', 'all')->assertSee('Not mine');
+
+        Livewire::test(\App\Livewire\ChallengeCreate::class, ['challenge' => $ch])->assertSet('title', 'Mine')
+            ->set('title', 'Renamed')->set('keywords', 'queue, cash')->call('save')->assertHasNoErrors();
+        $this->assertSame('Renamed', $ch->fresh()->title);
+        $this->assertSame(['queue', 'cash'], $ch->fresh()->keywords);
+
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $exec->id, 'challenge_id' => $ch->id, 'title' => 't', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        Livewire::test(\App\Livewire\ChallengeShow::class, ['challenge' => $ch])->call('deleteChallenge')->assertRedirect();
+        $this->assertDatabaseMissing('challenges', ['id' => $ch->id]);
+        $this->assertNull($idea->fresh()->challenge_id); // the idea is kept
+
+        $this->actingAs($this->employee())->get('/challenges/'.$other->id.'/edit')->assertForbidden();
+    }
+
+    public function test_profile_tabs_are_my_challenges_my_ideas_saved(): void
+    {
+        $exec = $this->executive();
+        $this->actingAs($exec);
+        $ch = \App\Models\Challenge::create(['user_id' => $exec->id, 'title' => 'Cut the queues', 'brief' => 'b', 'keywords' => ['queue']]);
+
+        $page = Livewire::test(\App\Livewire\Profile::class, ['user' => $exec])
+            ->assertSet('tab', 'challenges')->assertSee('My challenges')->assertSee('My ideas')->assertSee('Saved')->assertSee('Cut the queues');
+        $page->set('tab', 'saved')->assertDontSee('Cut the queues');
+
+        // an employee has no challenges tab, and others do not see a Saved tab
+        $emp = $this->employee();
+        Livewire::test(\App\Livewire\Profile::class, ['user' => $emp])->assertSet('tab', 'ideas')->assertDontSee('My challenges');
+        $this->actingAs($emp);
+        Livewire::test(\App\Livewire\Profile::class, ['user' => $exec])->assertSee('Challenges')->assertDontSee('Saved')->assertDontSee('My ideas')->assertDontSee('My challenges');
+    }
+
     public function test_executive_pages_are_forbidden_to_employees(): void
     {
         $this->actingAs($this->employee())->get('/executive/ranking')->assertForbidden();

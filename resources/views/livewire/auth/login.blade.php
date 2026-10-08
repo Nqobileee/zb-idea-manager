@@ -55,7 +55,7 @@
                         <input id="code" wire:model="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" autofocus class="inp h-[60px] text-center font-mono text-[26px] tracking-[.5em]">
                     </div>
                     @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
-                    @if ($demo)<p class="hint">Demo mode: any 6 digits work.</p>@elseif (app()->environment('local'))<p class="hint">Local: the code is in storage/logs/laravel.log and in the Email log.</p>@endif
+                    @if ($demo)<p class="hint">Demo mode: any 6 digits work.</p>@elseif (app()->environment('local'))<p class="hint">Local: the code is in storage/logs/laravel.log.</p>@endif
                     <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">Verify and continue</button>
                 </form>
             @endif

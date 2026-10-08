@@ -19,24 +19,22 @@
     </div>
 
     @if ($showFilter)
-        <div class="sheet my-3 space-y-4">
-            <div>
-                <span class="lbl">Stage</span>
-                <div class="flex flex-wrap gap-2">
-                    @foreach (\App\Models\Idea::STATUSES as $s)
-                        <label @class(['cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] font-semibold', 'border-brand bg-tint text-brand' => in_array($s, $statuses), 'border-line' => ! in_array($s, $statuses)])>
-                            <input type="checkbox" class="sr-only" value="{{ $s }}" wire:model.live="statuses">{{ $s }}</label>
-                    @endforeach
-                </div>
+        <div class="my-2 space-y-2 rounded-2xl border border-line p-2.5">
+            <div class="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none]" role="group" aria-label="Stage">
+                @foreach (\App\Models\Idea::STATUSES as $s)
+                    <label @class(['flex-none cursor-pointer rounded-full px-2.5 py-1 text-xs font-bold ring-offset-1', \App\Models\Idea::stageClasses($s), 'ring-2 ring-brand' => in_array($s, $statuses), 'opacity-60 hover:opacity-100' => ! in_array($s, $statuses)])>
+                        <input type="checkbox" class="sr-only" value="{{ $s }}" wire:model.live="statuses">{{ $s }}</label>
+                @endforeach
             </div>
-            <div>
-                <label class="lbl" for="chf">Challenge</label>
-                <select id="chf" wire:model.live="challenge" class="inp">
-                    <option value="all">All ideas</option>
+            <div class="flex items-center gap-2">
+                <label class="sr-only" for="chf">Challenge</label>
+                <select id="chf" wire:model.live="challenge" class="inp !h-9 min-w-0 grow !rounded-full !px-3 text-[13px]">
+                    <option value="all">All challenges</option>
                     @foreach ($challenges as $c)<option value="{{ $c->id }}">{{ $c->title }}</option>@endforeach
                 </select>
+                <button wire:click="clearFilters" class="btn btn-sm flex-none">Clear</button>
+                <button wire:click="toggleFilter" class="btn btn-sm btn-primary flex-none">Done</button>
             </div>
-            <div class="flex justify-end gap-2"><button wire:click="clearFilters" class="btn btn-sm">Clear</button><button wire:click="toggleFilter" class="btn btn-sm btn-primary">Done</button></div>
         </div>
     @endif
 

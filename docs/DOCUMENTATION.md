@@ -37,7 +37,7 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 | **Employee** | Anyone who signs in | Post ideas with images and documents, like, comment, share, save, chat, answer challenges, use the WhatsApp bot |
 | **Executive** | Users with `is_admin = true`, shown with a blue verified tick | Everything an employee can do, plus set challenges, AI ranking, approve ideas, change an idea's stage, insights, user list, email log, approve from WhatsApp |
 
-**For now, anyone can sign in with any email address and can choose to sign in as Employee or Executive admin** (see "Temporary open access" below). Executive status is stored in the database and checked on the server, and an executive can promote or demote other users on the *All users* page.
+**For now, anyone can sign in with any email address and can choose to sign in as Employee or Executive admin** (see "Temporary open access" below). Executive status is stored in the database and checked on the server, and an executive can be changed in the database (`users.is_admin`).
 
 **Temporary open access.** While the app is being set up, three switches are open so that anyone can try every role:
 
@@ -76,7 +76,7 @@ flowchart LR
 - **Approval** emails the author, adds an Activity item and sends a WhatsApp message if their number is linked.
 - **Stage control and a note** on every idea page, and a shortcut to message the author.
 - **New challenge** posted to all staff.
-- **Insights, All users, Email log.**
+- **Insights.**
 
 ### Branding
 The real ZB logo (`ZB-Logo.webp` in the repo root) is used in the sidebar, sign-in page, favicon and Android icons and splash screens. The colors come from the logo: ZB green `#049016` (buttons, tags, active items), light green `#83be06` (accents) and soft green tints. They are defined once in `resources/css/app.css`. To change the brand, replace the logo file, re-run the image step, and edit those color values.
@@ -252,8 +252,6 @@ stateDiagram-v2
 | `/profile/edit` | `ProfileEdit` | Signed in |
 | `/executive/ranking` | `Admin\Ranking` | Executives |
 | `/executive/insights` | `Admin\Insights` | Executives |
-| `/executive/users` | `Admin\Users` | Executives |
-| `/executive/emails` | `Admin\Emails` | Executives |
 | `GET/POST /webhooks/whatsapp` | `WhatsappWebhookController` | Meta (signature checked) |
 | `POST /logout` | closure | Signed in |
 
@@ -268,8 +266,6 @@ flowchart TD
     H -->|+| N[New idea]
     L -->|executive| R[AI ranking]
     R --> IN[Insights]
-    R --> U[All users]
-    R --> EM[Email log]
 ```
 
 ## 6. Key flows
@@ -639,7 +635,7 @@ php artisan reverb:start
 php artisan queue:work           # only needed if you add queued jobs
 ```
 
-The code is emailed through your mail transport. In the `local` environment it is also written to `storage/logs/laravel.log` and to the *Email log* (executive page).
+The code is emailed through your mail transport. In the `local` environment it is also written to `storage/logs/laravel.log`.
 
 
 ## 12. Deployment
@@ -706,7 +702,7 @@ Do not run `migrate:fresh` in production: it deletes all data. `php artisan migr
 | `IDEAS_AUTO_PROVISION` | Create an account on first valid sign-in. Turn off once you import staff or sync a directory |
 | `IDEAS_UPLOAD_DISK` | `public` (server disk) or `supabase` (Supabase Storage via S3) |
 | `SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_ACCESS_KEY_ID`, `SUPABASE_STORAGE_SECRET_ACCESS_KEY`, `SUPABASE_STORAGE_REGION` | Supabase Storage (only when uploads use Supabase). `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are not used by this app |
-| `MAIL_*` | Mail transport. Codes and approvals are always saved to the email log, and sent when a real mailer is configured |
+| `MAIL_*` | Mail transport. Codes and approvals are always saved to the `sent_emails` table, and sent when a real mailer is configured |
 | `BROADCAST_CONNECTION` | `reverb` |
 | `REVERB_*`, `VITE_REVERB_*` | Websocket server keys and host |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Cloud API credentials |
@@ -785,7 +781,7 @@ docs/                     this document
 
 **Before go-live**
 - Set a real mail transport (`MAIL_*`) and the other production environment values.
-- Turn off the open access switches (`IDEAS_ALLOW_ROLE_CHOICE=false`, set `IDEAS_EMAIL_DOMAIN`), and assign real executives on the *All users* page.
+- Turn off the open access switches (`IDEAS_ALLOW_ROLE_CHOICE=false`, set `IDEAS_EMAIL_DOMAIN`), and assign real executives on the database (set `users.is_admin`).
 - Compile and test the Android app on a device and ship a signed build.
 - Register the WhatsApp number, get the `idea_approved` template approved and test with a live account.
 - Move documents to a private disk and add malware scanning.

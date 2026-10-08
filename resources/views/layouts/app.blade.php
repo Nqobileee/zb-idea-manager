@@ -19,7 +19,7 @@
     $route = request()->route()?->getName();
     $nav = [
         ['home', 'Home', 'home', route('home'), ['home', 'ideas.show']],
-        ['challenges', 'Challenges', 'flag', route('challenges'), ['challenges', 'challenges.show', 'challenges.create']],
+        ['challenges', $user->is_admin ? 'My challenges' : 'Challenges', 'flag', route('challenges'), ['challenges', 'challenges.show', 'challenges.create', 'challenges.edit']],
         ['chat', 'Chat', 'chat', route('chat'), ['chat']],
         ['activity', 'Activity', 'bell', route('activity'), ['activity']],
         ['members', 'Members', 'users', route('members'), ['members', 'profile', 'profile.edit']],
@@ -29,7 +29,7 @@
 <div class="md:grid md:grid-cols-[252px_minmax(0,1fr)]">
 
     {{-- Desktop sidebar --}}
-    <aside class="sticky top-0 hidden h-dvh flex-col gap-0.5 overflow-y-auto border-r border-line bg-white px-3.5 pt-5.5 pb-4 md:flex">
+    <aside class="sticky top-0 hidden h-dvh flex-col gap-0.5 [&>*]:shrink-0 overflow-y-auto border-r border-line bg-white px-3.5 pt-5.5 pb-4 md:flex">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5 px-2.5 pb-5 font-display text-[17px] font-bold tracking-tight">
             <img src="{{ asset('images/zb-logo.png') }}" alt="ZB" class="size-9 flex-none"> <span>Idea Manager</span>
         </a>
@@ -42,7 +42,7 @@
         <a href="{{ route('ideas.create') }}" wire:navigate class="btn btn-primary my-3"><x-icon name="plus" :size="16" /> Post an idea</a>
         @if ($user->is_admin)
             <div class="px-3 pt-5 pb-1.5 text-[11px] font-semibold tracking-widest text-muted uppercase">Executive</div>
-            @foreach ([['admin.ranking', 'AI ranking', 'spark', route('admin.ranking')], ['admin.insights', 'Insights', 'chart', route('admin.insights')], ['admin.users', 'All users', 'user', route('admin.users')], ['admin.emails', 'Email log', 'mail', route('admin.emails')]] as [$r, $l, $i, $u])
+            @foreach ([['admin.ranking', 'AI ranking', 'spark', route('admin.ranking')], ['admin.insights', 'Insights', 'chart', route('admin.insights')]] as [$r, $l, $i, $u])
                 <a href="{{ $u }}" wire:navigate @class(['nav', 'nav-on' => $route === $r])><x-icon :name="$i" :size="20" />{{ $l }}</a>
             @endforeach
         @endif
@@ -75,8 +75,6 @@
                         @if ($user->is_admin)
                             <a href="{{ route('admin.ranking') }}" class="nav"><x-icon name="spark" :size="18" /> AI ranking</a>
                             <a href="{{ route('admin.insights') }}" class="nav"><x-icon name="chart" :size="18" /> Insights</a>
-                            <a href="{{ route('admin.users') }}" class="nav"><x-icon name="user" :size="18" /> All users</a>
-                            <a href="{{ route('admin.emails') }}" class="nav"><x-icon name="mail" :size="18" /> Email log</a>
                         @endif
                         <form method="POST" action="{{ route('logout') }}">@csrf<button class="nav"><x-icon name="logout" :size="18" /> Sign out</button></form>
                     </div>

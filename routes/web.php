@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/challenges', Challenges::class)->name('challenges');
     Route::get('/challenges/create', ChallengeCreate::class)->name('challenges.create');
+    Route::get('/challenges/{challenge}/edit', ChallengeCreate::class)->name('challenges.edit');
     Route::get('/challenges/{challenge}', ChallengeShow::class)->name('challenges.show');
 
     Route::get('/chat/{conversation?}', Chat::class)->name('chat');
@@ -52,7 +53,5 @@ Route::middleware('auth')->group(function () {
     Route::middleware('admin')->prefix('executive')->group(function () {
         Route::get('/ranking', Admin\Ranking::class)->name('admin.ranking');
         Route::get('/insights', Admin\Insights::class)->name('admin.insights');
-        Route::get('/users', Admin\Users::class)->name('admin.users');
-        Route::get('/emails', Admin\Emails::class)->name('admin.emails');
     });
 });

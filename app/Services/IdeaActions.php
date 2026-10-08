@@ -120,17 +120,35 @@ class IdeaActions
     public function postChallenge(User $by, array $data): Challenge
     {
         abort_unless($by->is_admin, 403);
-        $keywords = collect(explode(',', $data['keywords'] ?? ''))->map(fn ($k) => strtolower(trim($k)))->filter()->values()->all();
-        if (! $keywords) {
-            $keywords = collect(preg_split('/\W+/', strtolower($data['title'])))->filter(fn ($w) => strlen($w) > 3)->take(6)->values()->all();
-        }
-        $ch = Challenge::create(['user_id' => $by->id, 'title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $keywords, 'deadline' => $data['deadline'] ?: null]);
+        $ch = Challenge::create(['user_id' => $by->id, 'title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null]);
         User::where('id', '!=', $by->id)->each(function (User $u) use ($by, $ch) {
             Activity::create(['user_id' => $u->id, 'type' => 'challenge', 'actor_id' => $by->id, 'challenge_id' => $ch->id]);
             Realtime::send(new ActivityCreated($u->id));
         });
 
         return $ch;
+    }
+
+    public function updateChallenge(Challenge $challenge, User $by, array $data): Challenge
+    {
+        abort_unless($by->is_admin, 403);
+        $challenge->update(['title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null]);
+
+        return $challenge;
+    }
+
+    /** Ideas that answered the challenge are kept; they just lose the link. */
+    public function deleteChallenge(Challenge $challenge, User $by): void
+    {
+        abort_unless($by->is_admin, 403);
+        $challenge->delete();
+    }
+
+    private function keywordsFrom(array $data): array
+    {
+        $keywords = collect(explode(',', $data['keywords'] ?? ''))->map(fn ($k) => strtolower(trim($k)))->filter()->values()->all();
+
+        return $keywords ?: collect(preg_split('/\W+/', strtolower($data['title'])))->filter(fn ($w) => strlen($w) > 3)->take(6)->values()->all();
     }
 
     /** Email the executive the current top five (simulated: stored in the email log). */

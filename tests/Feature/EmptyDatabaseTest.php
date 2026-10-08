@@ -22,7 +22,7 @@ class EmptyDatabaseTest extends TestCase
     {
         $exec = User::create(['name' => 'First User', 'email' => 'first@example.com', 'is_admin' => true]);
         $this->actingAs($exec);
-        foreach (['/', '/challenges', '/challenges/create', '/chat', '/activity', '/members', '/profile/edit', '/members/'.$exec->id, '/executive/ranking', '/executive/insights', '/executive/users', '/executive/emails', '/ideas/create'] as $url) {
+        foreach (['/', '/challenges', '/challenges/create', '/chat', '/activity', '/members', '/profile/edit', '/members/'.$exec->id, '/executive/ranking', '/executive/insights', '/ideas/create'] as $url) {
             $this->get($url)->assertOk();
         }
         $this->get('/')->assertSee('No ideas yet');

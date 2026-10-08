@@ -11,7 +11,7 @@ return [
     'auto_provision' => (bool) env('IDEAS_AUTO_PROVISION', true),
 
     // TEMPORARY: let people pick Employee or Executive when they sign in. Turn off once real
-    // executives are assigned (then admin rights are only changed on the All users page).
+    // executives are assigned (then admin rights can only be changed in the database).
     'allow_role_choice' => (bool) env('IDEAS_ALLOW_ROLE_CHOICE', true),
 
     // Where uploaded images, documents and avatars are stored: 'public' (server disk) or 'supabase' (Supabase Storage).

@@ -66,7 +66,7 @@ class Login extends Component
             return;
         }
         if (config('ideas.allow_role_choice') && $user->is_admin !== $wantsAdmin) {
-            $user->update(['is_admin' => $wantsAdmin, 'title' => $wantsAdmin ? 'Executive' : ($user->title ?: 'Employee')]);
+            $user->update(['is_admin' => $wantsAdmin]);
         }
         Auth::login($user, remember: true);
         session()->regenerate();

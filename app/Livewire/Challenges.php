@@ -11,8 +11,22 @@ use Livewire\Component;
 #[Title('Challenges')]
 class Challenges extends Component
 {
+    public string $tab = '';
+
+    public function mount(): void
+    {
+        // executives start on the challenges they set; everyone else sees all of them
+        $this->tab = auth()->user()->is_admin ? 'mine' : 'all';
+    }
+
     public function render()
     {
-        return view('livewire.challenges', ['challenges' => Challenge::with('owner')->withCount('ideas')->orderBy('deadline')->get()]);
+        $me = auth()->user();
+        $q = Challenge::with('owner')->withCount('ideas')->orderBy('deadline');
+        if ($this->tab === 'mine' && $me->is_admin) {
+            $q->where('user_id', $me->id);
+        }
+
+        return view('livewire.challenges', ['challenges' => $q->get(), 'me' => $me]);
     }
 }
