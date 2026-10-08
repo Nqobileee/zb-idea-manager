@@ -22,7 +22,7 @@ class Login extends Component
 
     public ?string $error = null;
 
-    public function sendCode(AuthCodes $codes): void
+    public function sendCode(AuthCodes $codes)
     {
         $this->email = strtolower(trim($this->email));
         if (! $codes->isWorkEmail($this->email)) {
@@ -31,6 +31,9 @@ class Login extends Component
             return;
         }
         $this->error = null;
+        if (! config('ideas.require_code')) {
+            return $this->signInAs($codes);
+        }
         $codes->send($this->email);
         $this->step = 'code';
     }
@@ -49,6 +52,12 @@ class Login extends Component
 
             return;
         }
+        return $this->signInAs($codes);
+    }
+
+    /** Find or create the account for $this->email and sign in. Called after the code check, or straight away when codes are off. */
+    private function signInAs(AuthCodes $codes)
+    {
         $wantsAdmin = config('ideas.allow_role_choice') && $this->role === 'admin';
         $user = $codes->userFor($this->email, $wantsAdmin);
         if (! $user) {
@@ -67,6 +76,6 @@ class Login extends Component
 
     public function render()
     {
-        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code'), 'roleChoice' => config('ideas.allow_role_choice')]);
+        return view('livewire.auth.login', ['demo' => config('ideas.accept_any_code'), 'needsCode' => config('ideas.require_code'), 'roleChoice' => config('ideas.allow_role_choice')]);
     }
 }

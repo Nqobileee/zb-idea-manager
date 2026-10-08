@@ -27,6 +27,7 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
         <env name="IDEAS_ACCEPT_ANY_CODE" value="false"/>
+        <env name="IDEAS_REQUIRE_CODE" value="true"/>
         <env name="WHATSAPP_TOKEN" value=""/>
         <env name="WHATSAPP_APP_SECRET" value=""/>
         <env name="MAIL_MAILER" value="array"/>

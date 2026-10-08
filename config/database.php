@@ -86,17 +86,25 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            // Works with the names Supabase (and its Vercel integration) give you. First one that is set wins:
+            // DB_URL, POSTGRES_URL_NON_POOLING (direct / session, port 5432), POSTGRES_URL (pooled, port 6543).
+            // The single connection string already holds host, port, user, password and database.
+            'url' => env('DB_URL') ?: env('POSTGRES_URL_NON_POOLING') ?: env('POSTGRES_URL'),
+            'host' => env('DB_HOST', env('POSTGRES_HOST', '127.0.0.1')),
             'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'database' => env('DB_DATABASE', env('POSTGRES_DATABASE', 'postgres')),
+            'username' => env('DB_USERNAME', env('POSTGRES_USER', 'postgres')),
+            'password' => env('DB_PASSWORD', env('POSTGRES_PASSWORD', '')),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'sslmode' => env('DB_SSLMODE', 'require'),
+            // The pooled URL (port 6543, "transaction mode") cannot use prepared statements, so send plain queries when it is used.
+            'options' => (! env('DB_URL') && ! env('POSTGRES_URL_NON_POOLING') && env('POSTGRES_URL'))
+                || str_contains((string) (env('DB_URL') ?: ''), ':6543')
+                || (int) env('DB_PORT', 5432) === 6543
+                ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [

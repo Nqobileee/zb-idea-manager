@@ -2,7 +2,7 @@
 
 ZB Idea Manager is where verified ZB Group employees post ideas, answer challenges set by executives, and follow each idea from first sketch to launch. Executives rank ideas, approve the best ones and see how the programme is doing. Staff can also use it from WhatsApp.
 
-**Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, MySQL. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
+**Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, and Supabase for the database (Postgres) and optionally file storage. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
 
 > **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 26 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
 >
@@ -97,8 +97,8 @@ flowchart TB
       NGINX[Nginx + PHP-FPM] --> LARAVEL[Laravel 13 app]
       LARAVEL --> LW[Livewire components]
       LARAVEL --> SVC[Services: IdeaActions, Ranking, AuthCodes, WhatsappBot]
-      LARAVEL --> MYSQL[(MySQL)]
-      LARAVEL --> FILES[(Public disk: images, documents, avatars)]
+      LARAVEL --> PG[(Supabase Postgres)]
+      LARAVEL --> FILES[(Uploads: server disk or Supabase Storage)]
       SVC -->|broadcast| REVERB[Reverb websocket server]
       LARAVEL --> QUEUE[Queue worker]
     end
@@ -277,7 +277,7 @@ sequenceDiagram
     actor U as User
     participant L as Login (Livewire)
     participant C as AuthCodes
-    participant DB as MySQL
+    participant DB as Postgres
     U->>L: Work email
     L->>C: isWorkEmail?
     C->>DB: Store hashed code, expires in 10 min
@@ -369,7 +369,7 @@ sequenceDiagram
     participant R as Reverb
     participant B as Receiver browser or Android app
     A->>L: send()
-    L->>L: Save message in MySQL
+    L->>L: Save message in Postgres
     L->>R: broadcast MessageSent (private channel)
     R-->>B: push over websocket
     B->>B: Livewire.dispatch realtime, components re-render
@@ -413,7 +413,7 @@ flowchart LR
     BOT --> CLI[WhatsappClient]
     ACT --> CLI
     CLI -->|Graph API| META
-    ACT --> DB[(MySQL)]
+    ACT --> DB[(Postgres)]
 ```
 
 ### 9.3 Linking a number
@@ -530,7 +530,7 @@ flowchart LR
     APK[Android app: Capacitor shell] --> WV[WebView]
     WV -->|HTTPS| SITE[https://ideas.zb.co.zw Laravel]
     SITE -->|websocket| REV[Reverb]
-    SITE --> DB[(MySQL)]
+    SITE --> DB[(Postgres)]
 ```
 
 Configuration is in `capacitor.config.json`:
@@ -579,25 +579,52 @@ Add `@capacitor/push-notifications` with Firebase, store each device token again
 
 ## 11. Setup and running locally
 
-**Requirements:** PHP 8.3 (extensions: curl, fileinfo, mbstring, openssl, pdo_mysql, sodium, zip, intl, gd), Composer, Node 20+, MySQL 8 (SQLite also works for a quick try).
+**Requirements:** PHP 8.3 (extensions: curl, fileinfo, mbstring, openssl, pdo_pgsql, sodium, zip, intl, gd), Composer, Node 20+, and a free Supabase project (the tests use SQLite and need no database).
+
+### Supabase setup
+
+1. Create a project at supabase.com. Save the **database password**.
+2. Open **Connect** in the dashboard and copy the connection strings into `.env` **under the names Supabase uses**. If you use the Supabase integration on Vercel, those variables are created for you.
+
+   | `.env` name | What it is | Used for |
+   |---|---|---|
+   | `POSTGRES_URL_NON_POOLING` | Direct or session-pooler string, port 5432 | **Preferred.** Works with everything, including migrations |
+   | `POSTGRES_URL` | Pooled string, port 6543 ("transaction mode") | Fallback for hosts that cannot reach the direct string. The app then sends plain queries, because this pooler has no prepared statements |
+   | `DB_URL` | Any connection string | Overrides both, if you want to set it by hand |
+   | `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DATABASE` | The parts of the string | Only if you do not use a URL. `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` also work |
+
+   Keep `DB_CONNECTION=pgsql` and `DB_SSLMODE=require`. If you only have a pooled string, use the session pooler (port 5432) from the Connect page for `php artisan migrate`.
+3. Create the empty tables, with **either** option (not both):
+   - `php artisan migrate`, or
+   - paste `database/schema/zb_ideas.postgres.sql` into the Supabase **SQL editor** and run it. It also records the migrations as applied, so a later `php artisan migrate` does nothing.
+4. Both options switch on **row level security** for every table with no policies. Supabase exposes tables in the `public` schema through its REST API; this keeps your data unreadable through the public API keys. Laravel connects as the `postgres` role, which bypasses RLS, so the app is unaffected. Any table you add later needs `alter table "name" enable row level security;`.
+5. Do not use Supabase Auth, the Data API or Realtime for this app. Laravel handles sign-in, the Livewire pages and Reverb itself, and uses Supabase only as the database (and optionally file storage).
+
+### Run the app
 
 ```bash
 composer install
-cp .env.example .env
-php artisan key:generate
-```
-
-Edit `.env`: set the `DB_*` values for an empty MySQL database called `zb_ideas`. For a quick try you can also set `IDEAS_ACCEPT_ANY_CODE=true` so any 6 digits sign you in. Then:
-
-```bash
+cp .env.example .env && php artisan key:generate   # then fill in DB_*
 php artisan migrate              # creates the empty tables. No data is added.
-php artisan storage:link         # make uploads reachable
+php artisan storage:link         # only if uploads stay on the server disk
 npm install
 npm run build                    # or: npm run dev
 php artisan serve                # http://localhost:8000
 ```
 
-**Database template.** `database/schema/zb_ideas.mysql.sql` contains the same empty tables as plain MySQL statements, so the database can also be created by importing that file (for example in phpMyAdmin) into an empty `zb_ideas` database. Use **either** the SQL file **or** `php artisan migrate`, not both. After changing a migration, regenerate the file with `php artisan schema:sql`.
+For a quick try you can set `IDEAS_ACCEPT_ANY_CODE=true` so any 6 digits sign you in.
+
+### Uploads on Supabase Storage (optional)
+
+By default uploads go to the server's `public` disk. That is fine on a normal server, but disks on many hosts are wiped on every deploy, so for production put uploads in Supabase Storage:
+
+1. In Supabase **Storage**, create a **public** bucket called `uploads`.
+2. In **Storage, S3 Connection**, create an access key. Copy the key id and the secret.
+3. Set in `.env`: `IDEAS_UPLOAD_DISK=supabase`, `SUPABASE_URL` (your project URL), `SUPABASE_STORAGE_BUCKET=uploads`, `SUPABASE_STORAGE_ACCESS_KEY_ID` and `SUPABASE_STORAGE_SECRET_ACCESS_KEY`. The S3 endpoint and the public file links are built from `SUPABASE_URL`.
+
+Files in a public bucket can be opened by anyone who has the link (the links are long and unguessable, but not secret). Documents that must stay private need a private bucket and signed links, which is a later step.
+
+**Database template.** `database/schema/zb_ideas.postgres.sql` holds the empty tables as plain Postgres statements. After you change a migration, regenerate it with `php artisan schema:sql`.
 
 The database starts empty. Open the site, enter any email and the 6-digit code, and your account is created. The first people to sign in choose Employee or Executive admin on the sign-in page. Executives can then post a challenge, and everyone can post ideas.
 
@@ -622,14 +649,14 @@ flowchart LR
     SUP --> RV[reverb:start]
     SUP --> QW[queue:work]
     NGINX --> APP[Laravel]
-    APP --> MY[(MySQL)]
+    APP --> MY[(Supabase Postgres)]
     NGINX -->|proxy /app websocket| RV
 ```
 
 Checklist
-1. Server with PHP 8.3, MySQL, Nginx, Node (for the build), Supervisor.
+1. Server with PHP 8.3 (with `pdo_pgsql`), Nginx, Node (for the build), Supervisor, and a Supabase project for the database.
 2. `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build`.
-3. Production `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`, MySQL credentials, `IDEAS_ACCEPT_ANY_CODE=false`, real mail settings (`MAIL_MAILER=smtp` and so on), Reverb host and keys, WhatsApp variables.
+3. Production `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL`, the Supabase connection (`POSTGRES_URL_NON_POOLING`), `IDEAS_UPLOAD_DISK=supabase` with the `SUPABASE_*` values, `IDEAS_ACCEPT_ANY_CODE=false`, real mail settings (`MAIL_MAILER=smtp` and so on), Reverb host and keys, WhatsApp variables.
 4. `php artisan migrate --force`, `php artisan storage:link`, `php artisan config:cache route:cache view:cache`.
 5. Supervisor keeps `php artisan reverb:start` and `php artisan queue:work` running.
 6. HTTPS everywhere. Proxy the websocket path (`/app`) to Reverb and set `REVERB_SCHEME=https`, `REVERB_PORT=443`.
@@ -641,11 +668,13 @@ Do not run `migrate:fresh` in production: it deletes all data. `php artisan migr
 
 | Variable | Purpose |
 |---|---|
-| `DB_*` | MySQL connection |
+| `POSTGRES_URL_NON_POOLING`, `POSTGRES_URL`, `DB_URL` | Supabase Postgres connection string (first one set wins). `POSTGRES_HOST/USER/PASSWORD/DATABASE` or `DB_*` parts also work. `DB_SSLMODE=require` |
 | `IDEAS_EMAIL_DOMAIN` | Restrict sign-in to one domain, for example `zb.co.zw`. **Empty means any email can sign in (current setting).** |
 | `IDEAS_ACCEPT_ANY_CODE` | Demo only: accept any 6 digits. **Keep false in production.** |
 | `IDEAS_ALLOW_ROLE_CHOICE` | Temporary: the sign-in page lets people pick Employee or Executive admin. **Set false before real use.** |
 | `IDEAS_AUTO_PROVISION` | Create an account on first valid sign-in. Turn off once you import staff or sync a directory |
+| `IDEAS_UPLOAD_DISK` | `public` (server disk) or `supabase` (Supabase Storage via S3) |
+| `SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_STORAGE_ACCESS_KEY_ID`, `SUPABASE_STORAGE_SECRET_ACCESS_KEY`, `SUPABASE_STORAGE_REGION` | Supabase Storage (only when uploads use Supabase). `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are not used by this app |
 | `MAIL_*` | Mail transport. Codes and approvals are always saved to the email log, and sent when a real mailer is configured |
 | `BROADCAST_CONNECTION` | `reverb` |
 | `REVERB_*`, `VITE_REVERB_*` | Websocket server keys and host |
@@ -703,7 +732,7 @@ app/
 config/ideas.php          app settings and WhatsApp settings
 database/
   migrations/             schema
-  schema/zb_ideas.mysql.sql   empty MySQL template (generated by `php artisan schema:sql`)
+  schema/zb_ideas.postgres.sql   empty Postgres template for Supabase (generated by `php artisan schema:sql`)
   seeders/                DatabaseSeeder (intentionally empty)
 resources/
   css/app.css             Tailwind theme and small component classes
@@ -735,7 +764,7 @@ docs/                     this document
 - The WhatsApp bot handles text and button taps; photos and documents sent in WhatsApp are not yet attached to ideas (the bot points the user to the web app).
 - WhatsApp notifications are implemented for approvals. Comments, new challenges and a daily top 5 can be added the same way in `IdeaActions::notify()`.
 - Push notifications on Android are not set up (see section 10).
-- Uploaded images and documents live on the server's `public` disk, so back up `storage/app/public` together with the database.
+- Uploads live on the server disk unless you switch to Supabase Storage (see section 11). Files in a public bucket are reachable by anyone with the link.
 
 **Suggested plan**
 
@@ -745,7 +774,7 @@ gantt
     dateFormat  YYYY-MM-DD
     axisFormat  %b
     section Production readiness
-    Server, MySQL, mail, HTTPS         :a1, 2026-11-02, 14d
+    Server, Supabase project, mail, HTTPS         :a1, 2026-11-02, 14d
     Staff import and sign-in review    :a2, after a1, 10d
     section Mobile
     Android build and device testing   :b1, 2026-11-09, 14d

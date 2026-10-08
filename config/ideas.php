@@ -17,6 +17,10 @@ return [
     // Where uploaded images, documents and avatars are stored: 'public' (server disk) or 'supabase' (Supabase Storage).
     'upload_disk' => env('IDEAS_UPLOAD_DISK', 'public'),
 
+    // TEMPORARY: when false, a valid email address is enough to sign in or link WhatsApp (no emailed code).
+    // This means anyone can sign in as anyone. Set true as soon as real mail is configured.
+    'require_code' => (bool) env('IDEAS_REQUIRE_CODE', false),
+
     'code_ttl_minutes' => 10,
     'max_code_attempts' => 5,
     'lockout_minutes' => 30,

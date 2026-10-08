@@ -109,18 +109,7 @@ class WhatsappBot
     {
         if ($s->state === 'link_code') {
             if ($this->codes->check($s->pending_email, $input)) {
-                $user = $this->codes->userFor($s->pending_email);
-                if (! $user) {
-                    $this->wa->text($s->phone, 'I could not find that account. Please contact the programme team.');
-                    $s->update(['state' => 'idle']);
-
-                    return;
-                }
-                User::where('phone', $s->phone)->where('id', '!=', $user->id)->update(['phone' => null]);
-                $user->update(['phone' => $s->phone]);
-                $s->update(['user_id' => $user->id, 'state' => 'idle', 'pending_email' => null]);
-                $this->wa->text($s->phone, "Linked, {$user->first_name}.");
-                $this->menu($s);
+                $this->completeLink($s, $s->pending_email);
 
                 return;
             }
@@ -143,6 +132,11 @@ class WhatsappBot
 
                 return;
             }
+            if (! config('ideas.require_code')) {
+                $this->completeLink($s, strtolower($input));
+
+                return;
+            }
             $this->codes->send($input);
             $s->update(['state' => 'link_code', 'pending_email' => strtolower($input), 'draft' => null]);
             $this->wa->text($s->phone, 'I sent a 6-digit code to that address. Reply with it here.');
@@ -150,6 +144,23 @@ class WhatsappBot
             return;
         }
         $this->startLink($s);
+    }
+
+    /** Attach this phone number to the account for $email (creating the account if needed). */
+    private function completeLink(WhatsappSession $s, string $email): void
+    {
+        $user = $this->codes->userFor($email);
+        if (! $user) {
+            $this->wa->text($s->phone, 'I could not find that account. Please contact the programme team.');
+            $s->update(['state' => 'idle']);
+
+            return;
+        }
+        User::where('phone', $s->phone)->where('id', '!=', $user->id)->update(['phone' => null]);
+        $user->update(['phone' => $s->phone]);
+        $s->update(['user_id' => $user->id, 'state' => 'idle', 'pending_email' => null]);
+        $this->wa->text($s->phone, "Linked, {$user->first_name}.");
+        $this->menu($s);
     }
 
     // ---- menu and intents -----------------------------------------------------------

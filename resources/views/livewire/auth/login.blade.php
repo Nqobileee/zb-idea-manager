@@ -40,8 +40,8 @@
                         </fieldset>
                     @endif
                     @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
-                    <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">Email me a code</button>
-                    <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> We email you a 6-digit code. No password needed.</p>
+                    <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">{{ $needsCode ? 'Email me a code' : 'Continue' }}</button>
+                    <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> {{ $needsCode ? 'We email you a 6-digit code. No password needed.' : 'No password or code needed for now. Your account is created the first time you continue.' }}</p>
                 </form>
             @else
                 <form wire:submit="verify" class="space-y-4">
