@@ -27,18 +27,18 @@
     </div>
 
     {{-- the two views --}}
-    <div class="mb-4 inline-flex rounded-full bg-surface p-1" role="tablist" aria-label="Pipeline view">
+    <div class="mb-4 flex w-full max-w-sm rounded-full bg-surface p-1 sm:inline-flex sm:w-auto sm:max-w-none" role="tablist" aria-label="Pipeline view">
         @foreach (['board' => ['Board', 'board'], 'projects' => ['Projects', 'file']] as $key => [$label, $icon])
-            <button role="tab" wire:click="$set('view','{{ $key }}')" aria-selected="{{ $view === $key ? 'true' : 'false' }}" @class(['inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold', 'bg-white text-brand shadow-sm' => $view === $key, 'text-muted' => $view !== $key])><x-icon :name="$icon" :size="14" /> {{ $label }}</button>
+            <button role="tab" wire:click="$set('view','{{ $key }}')" aria-selected="{{ $view === $key ? 'true' : 'false' }}" @class(['inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold', 'bg-white text-brand shadow-sm' => $view === $key, 'text-muted' => $view !== $key])><x-icon :name="$icon" :size="14" /> {{ $label }}</button>
         @endforeach
     </div>
 
     {{-- ===================== BOARD ===================== --}}
     @if ($view === 'board')
         <p class="hint mb-3">Drag a card to another column, or use <b>Move to</b>. Authors, tagged members and executives can move a project.</p>
-        <div class="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0 md:pb-0">
+        <div class="-mx-4 flex snap-x snap-mandatory items-start gap-3 overflow-x-auto px-4 pb-4 2xl:mx-0 2xl:grid 2xl:grid-cols-5 2xl:overflow-visible 2xl:px-0 2xl:pb-0">
             @foreach ($columns as $stage => $stageIdeas)
-                <section class="flex min-h-40 w-[78vw] max-w-[320px] flex-none snap-center flex-col rounded-2xl bg-surface p-2.5 transition-colors md:w-auto md:max-w-none"
+                <section class="flex min-h-40 w-[78vw] max-w-[320px] flex-none snap-center flex-col rounded-2xl bg-surface p-2.5 transition-colors md:w-[290px] 2xl:w-auto 2xl:max-w-none"
                          :class="over === '{{ $stage }}' && dragging ? 'bg-tint ring-2 ring-brand' : ''"
                          x-on:dragover.prevent="over = '{{ $stage }}'" x-on:dragleave="if (over === '{{ $stage }}') over = null"
                          x-on:drop.prevent="if (dragging) { $wire.move(dragging, '{{ $stage }}'); } dragging = null; over = null"
@@ -58,7 +58,7 @@
                                      :class="dragging === {{ $idea->id }} ? 'opacity-40' : ''"
                                      class="rounded-xl border border-line bg-white p-3 shadow-sm {{ $can ? 'cursor-grab active:cursor-grabbing' : '' }}">
                                 <a href="{{ route('projects.show', $idea) }}" wire:navigate draggable="false" class="block">
-                                    <h3 class="font-display text-[14.5px] leading-snug font-semibold tracking-tight">{{ $idea->title }}</h3>
+                                    <h3 class="font-display text-[14.5px] leading-snug break-words font-semibold tracking-tight">{{ $idea->title }}</h3>
                                     <div class="meta mt-2"><x-avatar :user="$idea->author" :size="20" /><span class="truncate">{{ $idea->author->name }}</span><x-verified :user="$idea->author" /></div>
                                     @if ($idea->challenge)<div class="mt-2"><span class="chip !h-5 !text-[11px]"><x-icon name="flag" :size="11" /><span class="truncate">{{ $idea->challenge->title }}</span></span></div>@endif
                                     <div class="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted">
@@ -89,15 +89,15 @@
 
     {{-- ===================== PROJECTS ===================== --}}
     @if ($view === 'projects')
-        <div class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <div class="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
             @forelse ($ideas as $idea)
                 @php($can = $idea->canContribute($me))
                 @php($k = $idea->stageIndex())
-                <article wire:key="pr{{ $idea->id }}" class="flex flex-col rounded-[20px] border border-line bg-white p-4 shadow-sm">
+                <article wire:key="pr{{ $idea->id }}" class="flex min-w-0 flex-col rounded-[20px] border border-line bg-white p-3.5 shadow-sm sm:p-4">
                     {{-- header --}}
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
-                            <a href="{{ route('projects.show', $idea) }}" wire:navigate class="block font-display text-[17px] leading-snug font-semibold tracking-tight hover:text-brand">{{ $idea->title }}</a>
+                            <a href="{{ route('projects.show', $idea) }}" wire:navigate class="block font-display text-[17px] leading-snug break-words font-semibold tracking-tight hover:text-brand">{{ $idea->title }}</a>
                             <div class="meta mt-1.5"><x-avatar :user="$idea->author" :size="20" /><span class="truncate">{{ $idea->author->name }}</span><x-verified :user="$idea->author" />@if ($idea->challenge)<span class="dot"></span><span class="truncate">{{ $idea->challenge->title }}</span>@endif</div>
                         </div>
                         <x-stage :status="$idea->status" />
@@ -179,7 +179,7 @@
                     @endif
 
                     {{-- footer --}}
-                    <div class="mt-4 flex items-center gap-2 border-t border-line pt-3">
+                    <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                         <a href="{{ route('projects.show', $idea) }}" wire:navigate class="btn btn-sm btn-primary">Open project</a>
                         @if ($can)
                             <select wire:change="move({{ $idea->id }}, $event.target.value)" class="h-[34px] rounded-full border border-line bg-white px-2.5 text-xs font-semibold text-muted" aria-label="Move to another stage">
@@ -191,7 +191,7 @@
                     </div>
                 </article>
             @empty
-                <div class="py-16 text-center text-muted lg:col-span-2 2xl:col-span-3"><b class="block text-ink">No projects here</b>Post an idea and it shows up in the pipeline.</div>
+                <div class="py-16 text-center text-muted xl:col-span-2 2xl:col-span-3"><b class="block text-ink">No projects here</b>Post an idea and it shows up in the pipeline.</div>
             @endforelse
         </div>
     @endif

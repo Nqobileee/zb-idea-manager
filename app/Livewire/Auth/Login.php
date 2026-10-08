@@ -80,10 +80,8 @@ class Login extends Component
             return;
         }
         if (config('ideas.allow_role_choice')) {
-            $user->update([
-                'is_admin' => $wantsAdmin,
-                'member_type' => array_key_exists($this->role, User::MEMBER_TYPES) ? $this->role : $user->member_type,
-            ]);
+            // member_type is skipped until its migration has run, so sign-in never breaks on a missing column.
+            $user->update(['is_admin' => $wantsAdmin] + (User::hasMemberType() && array_key_exists($this->role, User::MEMBER_TYPES) ? ['member_type' => $this->role] : []));
         }
         Auth::login($user, remember: true);
         session()->regenerate();

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -37,10 +38,18 @@ class User extends Authenticatable
         return $this->hasMany(Activity::class);
     }
 
+    /** False until the member_type migration has run. */
+    public static function hasMemberType(): bool
+    {
+        static $has;
+
+        return $has ??= Schema::hasColumn('users', 'member_type');
+    }
+
     /** Label shown under the name: Executive admin, or the member type picked at sign-in. */
     public function getRoleLabelAttribute(): string
     {
-        return $this->is_admin ? 'Executive admin' : (self::MEMBER_TYPES[$this->member_type] ?? 'Employee');
+        return $this->is_admin ? 'Executive admin' : (self::MEMBER_TYPES[$this->attributes['member_type'] ?? ''] ?? 'Employee');
     }
 
     public function getInitialsAttribute(): string

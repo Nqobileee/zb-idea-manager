@@ -72,7 +72,7 @@ class AuthCodes
 
         return User::create([
             'name' => User::nameFromEmail($email), 'email' => $email,
-            'joined' => (string) now()->year, 'is_admin' => $admin, 'member_type' => array_key_exists($memberType, User::MEMBER_TYPES) ? $memberType : 'employee', 'color' => '#049016',
-        ]);
+            'joined' => (string) now()->year, 'is_admin' => $admin,  'color' => '#049016',
+        ] + (User::hasMemberType() && array_key_exists($memberType, User::MEMBER_TYPES) ? ['member_type' => $memberType] : []));
     }
 }
