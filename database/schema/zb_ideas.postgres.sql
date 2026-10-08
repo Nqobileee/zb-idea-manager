@@ -3,7 +3,7 @@
 -- Run it once in the Supabase SQL editor on an empty project. Do not also run `php artisan migrate`.
 
 -- 0001_01_01_000000_create_users_table.php
-create table "users" ("id" bigserial not null primary key, "name" varchar(255) not null, "email" varchar(255) not null, "email_verified_at" timestamp(0) without time zone null, "password" varchar(255) null, "title" varchar(255) null, "dept" varchar(255) null, "bio" text null, "joined" varchar(8) null, "is_admin" boolean not null default '0', "color" varchar(9) not null default '#0d4a36', "avatar_path" varchar(255) null, "phone" varchar(20) null, "whatsapp_opt_in" boolean not null default '1', "remember_token" varchar(100) null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+create table "users" ("id" bigserial not null primary key, "name" varchar(255) not null, "email" varchar(255) not null, "email_verified_at" timestamp(0) without time zone null, "password" varchar(255) null, "title" varchar(255) null, "dept" varchar(255) null, "bio" text null, "joined" varchar(8) null, "is_admin" boolean not null default '0', "color" varchar(9) not null default '#049016', "avatar_path" varchar(255) null, "phone" varchar(20) null, "whatsapp_opt_in" boolean not null default '1', "remember_token" varchar(100) null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
 alter table "users" add constraint "users_email_unique" unique ("email");
 alter table "users" add constraint "users_phone_unique" unique ("phone");
 create table "password_reset_tokens" ("email" varchar(255) not null, "token" varchar(255) not null, "created_at" timestamp(0) without time zone null);
@@ -76,6 +76,11 @@ create index "whatsapp_messages_phone_index" on "whatsapp_messages" ("phone");
 
 -- 2026_10_02_000000_enable_row_level_security.php
 
+-- 2026_10_03_000000_use_zb_brand_green.php
+update "users" set "color" = '#049016' where "color" = '#0d4a36';
+alter table "users" alter column "color" type varchar(9), alter column "color" set not null, alter column "color" set default '#049016', alter column "color" drop identity if exists;
+comment on column "users"."color" is NULL;
+
 -- Row level security: Supabase exposes public tables through its REST API. Enabling RLS with no policies
 -- keeps the data private; Laravel connects as the postgres role, which bypasses RLS.
 alter table "users" enable row level security;
@@ -107,3 +112,4 @@ insert into "migrations" ("migration", "batch") values ('0001_01_01_000001_creat
 insert into "migrations" ("migration", "batch") values ('0001_01_01_000002_create_jobs_table', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_01_000000_create_idea_manager_tables', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_02_000000_enable_row_level_security', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_03_000000_use_zb_brand_green', 1);

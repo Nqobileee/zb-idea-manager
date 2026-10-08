@@ -73,7 +73,7 @@ class AuthCodes
         return User::create([
             'name' => User::nameFromEmail($email), 'email' => $email, 'title' => $admin ? 'Executive, Digital Strategy' : 'Business Analyst',
             'dept' => 'Digital Banking', 'bio' => 'I like ideas that save a customer a trip to the branch.',
-            'joined' => (string) now()->year, 'is_admin' => $admin, 'color' => '#0d4a36',
+            'joined' => (string) now()->year, 'is_admin' => $admin, 'color' => '#049016',
         ]);
     }
 }

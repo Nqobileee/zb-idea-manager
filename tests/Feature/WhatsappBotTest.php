@@ -72,6 +72,17 @@ class WhatsappBotTest extends TestCase
         $this->assertSame($user->id, WhatsappSession::first()->user_id);
     }
 
+    public function test_link_with_just_an_email_when_codes_are_off(): void
+    {
+        config(['ideas.require_code' => false]);
+        $this->say('hi');
+        $this->say('someone.new@example.com');
+        $user = User::where('email', 'someone.new@example.com')->firstOrFail();
+        $this->assertSame($this->phone, $user->phone);
+        $this->assertSame($user->id, WhatsappSession::first()->user_id);
+        $this->assertSame('idle', WhatsappSession::first()->state);
+    }
+
     public function test_post_an_idea_by_chat(): void
     {
         $this->link();

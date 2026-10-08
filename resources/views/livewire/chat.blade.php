@@ -55,6 +55,6 @@
     </div>
 
     @unless ($conv)
-        <button wire:click="$toggle('picking')" class="fixed right-4 grid size-14 place-items-center rounded-[18px] bg-brand text-white shadow-[0_8px_20px_rgba(13,74,54,.35)] md:hidden" style="bottom:calc(20px + env(safe-area-inset-bottom,0px))" aria-label="New chat"><x-icon name="plus" :size="24" /></button>
+        <button wire:click="$toggle('picking')" class="fixed right-4 grid size-14 place-items-center rounded-[18px] bg-brand text-white shadow-[0_8px_20px_rgba(4,144,22,.35)] md:hidden" style="bottom:calc(20px + env(safe-area-inset-bottom,0px))" aria-label="New chat"><x-icon name="plus" :size="24" /></button>
     @endunless
 </div>

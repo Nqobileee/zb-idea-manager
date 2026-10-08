@@ -39,14 +39,15 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 **For now, anyone can sign in with any email address and can choose to sign in as Employee or Executive admin** (see "Temporary open access" below). Executive status is stored in the database and checked on the server, and an executive can promote or demote other users on the *All users* page.
 
-**Temporary open access.** While the app is being set up, two switches are on so that anyone can try every role:
+**Temporary open access.** While the app is being set up, three switches are open so that anyone can try every role:
 
 | Switch | Now | Later |
 |---|---|---|
 | `IDEAS_EMAIL_DOMAIN` | empty: any email address can sign in | `zb.co.zw` to restrict to ZB staff |
+| `IDEAS_REQUIRE_CODE` | `false`: a valid email address is enough to sign in, with no verification | `true`: a 6-digit code is emailed and must be entered |
 | `IDEAS_ALLOW_ROLE_CHOICE` | `true`: the sign-in page asks Employee or Executive admin and applies it | `false`: executive rights are only changed by an executive on *All users* |
 
-Turn both off before the app holds real decisions: with them on, anyone can approve ideas.
+Turn them off before the app holds real decisions. With them on, **anyone can sign in as any other person just by typing their email, and anyone can approve ideas.**
 
 ```mermaid
 flowchart LR
@@ -59,7 +60,7 @@ flowchart LR
 ## 2. Features
 
 ### For everyone
-- **Sign in** with any email address and a 6-digit code sent to it. No passwords. The session lasts until sign-out. Your account is created the first time you sign in, and you can add your role, department and photo under *Edit profile*.
+- **Sign in** with just an email address for now: a valid address is enough and the account is created on the spot (no code, no password). When `IDEAS_REQUIRE_CODE=true` a 6-digit code is emailed first. The session lasts until sign-out. Your account is created the first time you sign in, and you can add your role, department and photo under *Edit profile*.
 - **Home feed** with *For you* (department, engagement, challenge ideas, freshness) and *Latest*; filter by stage and challenge; search.
 - **Idea cards** with author, blue tick for executives, stage tag, summary, image, challenge, documents and like / comment / share / save.
 - **Idea page** with stage tracker, images, full text, downloadable documents and comments.
@@ -76,6 +77,9 @@ flowchart LR
 - **Stage control and a note** on every idea page, and a shortcut to message the author.
 - **New challenge** posted to all staff.
 - **Insights, All users, Email log.**
+
+### Branding
+The real ZB logo (`ZB-Logo.webp` in the repo root) is used in the sidebar, sign-in page, favicon and Android icons and splash screens. The colors come from the logo: ZB green `#049016` (buttons, tags, active items), light green `#83be06` (accents) and soft green tints. They are defined once in `resources/css/app.css`. To change the brand, replace the logo file, re-run the image step, and edit those color values.
 
 ### Phone layout
 A floating dock (Home, Chat, Activity, Members) with a round **+** button to post an idea. Chat hides the dock and uses a **+** for new chats. The top bar shows the page title, a filter button on Home, search and your avatar menu.
@@ -670,6 +674,7 @@ Do not run `migrate:fresh` in production: it deletes all data. `php artisan migr
 |---|---|
 | `POSTGRES_URL_NON_POOLING`, `POSTGRES_URL`, `DB_URL` | Supabase Postgres connection string (first one set wins). `POSTGRES_HOST/USER/PASSWORD/DATABASE` or `DB_*` parts also work. `DB_SSLMODE=require` |
 | `IDEAS_EMAIL_DOMAIN` | Restrict sign-in to one domain, for example `zb.co.zw`. **Empty means any email can sign in (current setting).** |
+| `IDEAS_REQUIRE_CODE` | Temporary: `false` lets a valid email sign in (or link WhatsApp) with no code. **Set true once mail works.** |
 | `IDEAS_ACCEPT_ANY_CODE` | Demo only: accept any 6 digits. **Keep false in production.** |
 | `IDEAS_ALLOW_ROLE_CHOICE` | Temporary: the sign-in page lets people pick Employee or Executive admin. **Set false before real use.** |
 | `IDEAS_AUTO_PROVISION` | Create an account on first valid sign-in. Turn off once you import staff or sync a directory |
@@ -709,7 +714,7 @@ Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.
 
 ## 15. Security and privacy
 
-- Sign-in uses hashed, expiring, attempt-limited codes sent to the email address, and sessions are regenerated on login. Domain restriction is available (`IDEAS_EMAIL_DOMAIN`) but off for now. **While the temporary role choice is on, anyone can make themselves an executive.**
+- When `IDEAS_REQUIRE_CODE=true`, sign-in uses hashed, expiring, attempt-limited codes sent to the email address. With it off (current setting) there is no verification at all. Sessions are regenerated on login either way. Domain restriction is available (`IDEAS_EMAIL_DOMAIN`) but off for now. **While the temporary role choice is on, anyone can make themselves an executive.**
 - Executive rights come from the database and are enforced by middleware and inside `IdeaActions::approve()`. WhatsApp approvals pass through the same check.
 - Webhook requests are verified with HMAC-SHA256, de-duplicated by message id and rate limited per number.
 - A WhatsApp number is linked only after the user proves they own the email. Unlinked numbers can do nothing but link.

@@ -8,12 +8,13 @@
     --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
 
-    --color-brand: #0d4a36;
-    --color-brand-dark: #093827;
-    --color-tint: #e8f2ed;
-    --color-tint-2: #cfe3d9;
+    --color-brand: #049016;
+    --color-brand-dark: #037510;
+    --color-accent: #83be06;
+    --color-tint: #e6f4e8;
+    --color-tint-2: #c3e5c8;
     --color-line: #e1e8e4;
-    --color-surface: #f4f7f5;
+    --color-surface: #f4f8f4;
     --color-ink: #0a0f0c;
     --color-ink-2: #26302b;
     --color-muted: #56655d;
@@ -55,6 +56,6 @@
 }
 
 /* the dock and floating buttons use backdrop blur, which is fine on modern Android WebView */
-.glass { background: rgba(255, 255, 255, .78); backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8); border: 1px solid rgba(13, 74, 54, .12); }
+.glass { background: rgba(255, 255, 255, .78); backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8); border: 1px solid rgba(4, 144, 22, .14); }
 
 .ext { @apply grid h-11 w-[38px] flex-none place-items-center rounded-tl-md rounded-tr-xl rounded-b-md font-mono text-[9.5px] font-semibold text-white uppercase; }

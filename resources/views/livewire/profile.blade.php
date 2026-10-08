@@ -1,5 +1,5 @@
 <div class="mx-auto max-w-[700px]">
-    <div class="h-32 rounded-[20px]" style="background:radial-gradient(rgba(255,255,255,.14) 1.2px,transparent 1.3px) 0 0/14px 14px,linear-gradient(120deg,var(--color-brand),#2f6f5e)"></div>
+    <div class="h-32 rounded-[20px]" style="background:radial-gradient(rgba(255,255,255,.14) 1.2px,transparent 1.3px) 0 0/14px 14px,linear-gradient(120deg,var(--color-brand),var(--color-accent))"></div>
     <div class="-mt-11 flex items-end justify-between px-4">
         <span class="rounded-full border-4 border-white"><x-avatar :user="$user" :size="92" /></span>
         <div class="pb-2">

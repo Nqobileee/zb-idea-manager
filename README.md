@@ -19,6 +19,6 @@ npm install && npm run build
 php artisan serve
 ```
 
-The database starts empty. Sign in with any email address and choose Employee or Executive admin (temporary). In demo mode any 6 digits work. An empty Postgres template for the Supabase SQL editor is in `database/schema/zb_ideas.postgres.sql`.
+The database starts empty. Sign in with any email address and choose Employee or Executive admin (temporary). No code is needed for now. An empty Postgres template for the Supabase SQL editor is in `database/schema/zb_ideas.postgres.sql`.
 
 Realtime: `php artisan reverb:start`. Tests: `php artisan test`. Android: `npm run android:open` (see the docs).

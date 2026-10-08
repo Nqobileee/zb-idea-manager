@@ -2,18 +2,18 @@
     <section class="relative flex flex-col justify-between gap-10 overflow-hidden bg-brand px-6 py-8 text-white md:p-14"
              style="background-image:radial-gradient(rgba(255,255,255,.1) 1.2px,transparent 1.3px);background-size:14px 14px">
         <div class="flex items-center gap-2.5 font-display text-lg font-bold">
-            <span class="grid size-9 place-items-center rounded-[10px] bg-white font-display text-[13px] font-extrabold text-brand">ZB</span> Idea Manager
+            <span class="grid size-11 place-items-center rounded-xl bg-white p-1.5"><img src="{{ asset('images/zb-logo.png') }}" alt="ZB" class="size-full"></span> Idea Manager
         </div>
         <div>
             <h1 class="font-display text-[34px] leading-[1.05] font-bold tracking-tight md:text-5xl">Good ideas should reach the people who decide.</h1>
             <p class="mt-4 max-w-md text-[17px] text-white/80">Post your idea, answer challenges set by executives, and follow it from first sketch to launch.</p>
-            <div class="mt-6 flex flex-wrap gap-2 md:items-end">
+            <div class="mt-6 flex flex-wrap gap-2">
                 @foreach (\App\Models\Idea::STATUSES as $n => $s)
-                    <span @class(['rounded-full border px-3.5 py-1.5 text-[13px] font-semibold md:translate-y-[var(--lift)]', 'border-white/30' => ! $loop->last, 'border-white bg-white text-brand' => $loop->last]) style="--lift:calc({{ $n }} * -9px)">{{ $s }}</span>
+                    <span @class(['rounded-full border px-3.5 py-1.5 text-[13px] font-semibold', 'border-white/30' => ! $loop->last, 'border-white bg-white text-brand' => $loop->last]) style="--lift:calc({{ $n }} * -9px)">{{ $s }}</span>
                 @endforeach
             </div>
         </div>
-        <p class="flex items-center gap-1.5 text-[13px] text-white/75"><x-icon name="shield" :size="14" /> For verified ZB Group employees only.</p>
+        <p class="flex items-center gap-1.5 text-[13px] text-white/75"><x-icon name="shield" :size="14" /> For verified members only.</p>
     </section>
 
     <section class="flex items-center px-6 py-10 md:px-14">

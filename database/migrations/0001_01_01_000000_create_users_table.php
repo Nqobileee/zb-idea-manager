@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text('bio')->nullable();
             $table->string('joined', 8)->nullable();
             $table->boolean('is_admin')->default(false);
-            $table->string('color', 9)->default('#0d4a36');
+            $table->string('color', 9)->default('#049016');
             $table->string('avatar_path')->nullable();
             $table->string('phone', 20)->nullable()->unique();
             $table->boolean('whatsapp_opt_in')->default(true);

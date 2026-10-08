@@ -150,6 +150,20 @@ class WebAppTest extends TestCase
         $this->assertSame($list->pluck('total')->sortDesc()->values()->all(), $list->pluck('total')->all());
     }
 
+    public function test_a_valid_email_alone_creates_an_account_when_codes_are_off(): void
+    {
+        config(['ideas.require_code' => false]);
+        Livewire::test(Login::class)->set('email', 'brand.new@example.com')->call('sendCode')->assertRedirect();
+        $user = User::where('email', 'brand.new@example.com')->firstOrFail();
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame('Brand New', $user->name);
+        $this->assertDatabaseCount('login_codes', 0);
+
+        auth()->logout();
+        Livewire::test(Login::class)->set('email', 'not-an-email')->call('sendCode')->assertNoRedirect();
+        $this->assertGuest();
+    }
+
     public function test_role_choice_at_sign_in_for_now(): void
     {
         $page = Livewire::test(Login::class)->set('email', 'new.person@example.com')->set('role', 'admin')->call('sendCode');

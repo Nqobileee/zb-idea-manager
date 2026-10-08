@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0d4a36">
+    <meta name="theme-color" content="#049016">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
     <title>{{ ($title ?? 'Ideas') }} · ZB Idea Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +31,7 @@
     {{-- Desktop sidebar --}}
     <aside class="sticky top-0 hidden h-dvh flex-col gap-0.5 overflow-y-auto border-r border-line bg-white px-3.5 pt-5.5 pb-4 md:flex">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5 px-2.5 pb-5 font-display text-[17px] font-bold tracking-tight">
-            <span class="grid size-[30px] place-items-center rounded-[9px] bg-brand font-display text-xs font-extrabold text-white">ZB</span> Idea Manager
+            <img src="{{ asset('images/zb-logo.png') }}" alt="ZB" class="size-9 flex-none"> <span>Idea Manager</span>
         </a>
         @foreach ($nav as [$key, $label, $icon, $url, $match])
             <a href="{{ $url }}" wire:navigate @class(['nav', 'nav-on' => in_array($route, $match, true)])>
@@ -90,14 +92,14 @@
 
 {{-- Phone dock with the floating post button on the right --}}
 @unless ($bare || ($noDock ?? false))
-    <nav class="glass fixed inset-x-3 z-40 grid h-[66px] grid-cols-4 items-center rounded-3xl shadow-[0_12px_34px_rgba(13,74,54,.16)] md:hidden" style="bottom:calc(12px + env(safe-area-inset-bottom,0px))" aria-label="Main">
+    <nav class="glass fixed inset-x-3 z-40 grid h-[66px] grid-cols-4 items-center rounded-3xl shadow-[0_12px_34px_rgba(4,144,22,.18)] md:hidden" style="bottom:calc(12px + env(safe-area-inset-bottom,0px))" aria-label="Main">
         @foreach (collect($nav)->reject(fn ($n) => $n[0] === 'challenges') as [$key, $label, $icon, $url, $match])
             <a href="{{ $url }}" wire:navigate @class(['relative flex flex-col items-center gap-0.5 text-[10.5px] font-semibold', 'text-brand' => in_array($route, $match, true), 'text-muted' => ! in_array($route, $match, true)])>
                 <x-icon :name="$icon" :size="22" :fill="in_array($route, $match, true) && ! in_array($icon, ['users', 'chat'])" />{{ $label }}
                 @if ($key === 'activity' || $key === 'chat')<livewire:nav-badge :kind="$key" :float="true" :key="'dock-'.$key" />@endif
             </a>
         @endforeach
-        <a href="{{ route('ideas.create') }}" wire:navigate aria-label="Post a new idea" class="absolute right-1 bottom-[calc(100%+14px)] grid size-14 place-items-center rounded-[18px] bg-brand text-white shadow-[0_8px_20px_rgba(13,74,54,.35)]"><x-icon name="plus" :size="24" /></a>
+        <a href="{{ route('ideas.create') }}" wire:navigate aria-label="Post a new idea" class="absolute right-1 bottom-[calc(100%+14px)] grid size-14 place-items-center rounded-[18px] bg-brand text-white shadow-[0_8px_20px_rgba(4,144,22,.35)]"><x-icon name="plus" :size="24" /></a>
     </nav>
 @endunless
 
