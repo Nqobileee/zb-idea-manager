@@ -2,31 +2,69 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    protected $guarded = [];
+
+    protected $hidden = ['password', 'remember_token'];
+
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'is_admin' => 'boolean',
+            'whatsapp_opt_in' => 'boolean',
         ];
+    }
+
+    public function ideas(): HasMany
+    {
+        return $this->hasMany(Idea::class);
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(Activity::class);
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        return Str::of($this->name)->explode(' ')->filter()->map(fn ($w) => Str::upper(Str::substr($w, 0, 1)))->take(2)->implode('');
+    }
+
+    public function getFirstNameAttribute(): string
+    {
+        return Str::before($this->name, ' ');
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;
+    }
+
+    public function unreadActivityCount(): int
+    {
+        return $this->activities()->whereNull('read_at')->count();
+    }
+
+    /** Conversations this user takes part in. */
+    public function conversations()
+    {
+        return Conversation::where('user_a', $this->id)->orWhere('user_b', $this->id);
+    }
+
+    /** Create a display name from a work email: tinashe.moyo@zb.co.zw becomes Tinashe Moyo. */
+    public static function nameFromEmail(string $email): string
+    {
+        $local = Str::before($email, '@');
+
+        return collect(preg_split('/[._-]+/', $local))->filter()->map(fn ($w) => Str::ucfirst($w))->implode(' ') ?: 'ZB Employee';
     }
 }

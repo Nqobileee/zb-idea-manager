@@ -1,0 +1,25 @@
+{
+  "appId": "zw.co.zb.ideas",
+  "appName": "ZB Ideas",
+  "webDir": "mobile/www",
+  "server": {
+    "url": "https://ideas.zb.co.zw",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": ["ideas.zb.co.zw"]
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0d4a36",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0d4a36"
+    }
+  }
+}

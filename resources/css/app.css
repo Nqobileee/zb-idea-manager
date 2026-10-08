@@ -4,6 +4,57 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+
+    --color-brand: #0d4a36;
+    --color-brand-dark: #093827;
+    --color-tint: #e8f2ed;
+    --color-tint-2: #cfe3d9;
+    --color-line: #e1e8e4;
+    --color-surface: #f4f7f5;
+    --color-ink: #0a0f0c;
+    --color-ink-2: #26302b;
+    --color-muted: #56655d;
+    --color-heart: #c0352b;
+    --color-verified: #1d9bf0;
 }
+
+@layer base {
+    html, body { background: #fff; }
+    body { @apply font-sans text-ink text-[15px] leading-normal antialiased; padding-top: env(safe-area-inset-top, 0px); }
+    button { @apply cursor-pointer; }
+    :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: 8px; }
+    [x-cloak] { display: none !important; }
+}
+
+@layer components {
+    .btn { @apply inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-semibold whitespace-nowrap hover:border-tint-2 hover:bg-surface disabled:opacity-50; }
+    .btn-primary { @apply border-brand bg-brand text-white hover:bg-brand-dark hover:border-brand-dark; }
+    .btn-sm { @apply h-[34px] px-3.5 text-[13px]; }
+    .btn-lg { @apply h-12 text-[15px]; }
+    .iconbtn { @apply grid size-10 place-items-center rounded-full hover:bg-surface; }
+    .inp { @apply h-11 w-full rounded-xl border border-line bg-white px-3.5 text-[15px] outline-none focus:border-brand focus:ring-2 focus:ring-tint-2; }
+    textarea.inp { @apply h-auto min-h-24 py-2.5; }
+    .lbl { @apply mb-1.5 block text-[13px] font-semibold; }
+    .hint { @apply text-[13px] text-muted; }
+    .err { @apply mt-1 text-[13px] text-heart; }
+    .chip { @apply inline-flex h-6 max-w-full items-center gap-1.5 rounded-full bg-tint px-2.5 text-xs font-semibold text-brand; }
+    .chip-ghost { @apply bg-surface text-muted; }
+    .tag { @apply inline-flex h-5 flex-none items-center gap-[5px] rounded-full px-2 text-[10.5px] font-bold tracking-wide whitespace-nowrap before:size-[5px] before:rounded-full before:bg-current before:content-['']; }
+    .eyebrow { @apply mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold tracking-[.09em] text-brand uppercase; }
+    .page-title { @apply font-display text-3xl font-bold tracking-tight md:text-4xl; }
+    .nav { @apply flex w-full items-center gap-3 rounded-[10px] px-3 py-2 font-medium text-muted hover:bg-surface hover:text-ink; }
+    .nav-on { @apply bg-tint font-semibold text-brand; }
+    .count { @apply ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white tabular-nums; }
+    .act { @apply inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-semibold text-muted tabular-nums hover:bg-surface hover:text-ink; }
+    .meta { @apply flex min-w-0 items-center gap-2 text-xs text-muted; }
+    .dot { @apply size-[3px] flex-none rounded-full bg-current opacity-60; }
+    .sheet { @apply rounded-[20px] border border-line p-4; }
+}
+
+/* the dock and floating buttons use backdrop blur, which is fine on modern Android WebView */
+.glass { background: rgba(255, 255, 255, .78); backdrop-filter: blur(20px) saturate(1.8); -webkit-backdrop-filter: blur(20px) saturate(1.8); border: 1px solid rgba(13, 74, 54, .12); }
+
+.ext { @apply grid h-11 w-[38px] flex-none place-items-center rounded-tl-md rounded-tr-xl rounded-b-md font-mono text-[9.5px] font-semibold text-white uppercase; }

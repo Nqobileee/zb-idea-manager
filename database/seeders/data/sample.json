@@ -1,0 +1,739 @@
+{
+ "users": [
+  {
+   "key": "u2",
+   "name": "Rumbidzai Ncube",
+   "title": "Branch Operations Supervisor",
+   "dept": "Retail Banking",
+   "bio": "Runs payday operations at one of our busiest city branches. Interested in anything that makes the banking hall calmer.",
+   "joined": "2016",
+   "is_admin": false,
+   "color": "#2f6f5e",
+   "email": "rumbidzai.ncube@zb.co.zw"
+  },
+  {
+   "key": "u3",
+   "name": "Kudakwashe Mlambo",
+   "title": "Software Engineer",
+   "dept": "ZB Innovation Hub",
+   "bio": "Builds prototypes at the Hub. Happy to help anyone turn a sketch into something clickable.",
+   "joined": "2021",
+   "is_admin": false,
+   "color": "#7a5c2e",
+   "email": "kudakwashe.mlambo@zb.co.zw"
+  },
+  {
+   "key": "u4",
+   "name": "Farai Sibanda",
+   "title": "Relationship Manager",
+   "dept": "SME Banking",
+   "bio": "Looks after about 120 small business clients in Harare and Chitungwiza.",
+   "joined": "2018",
+   "is_admin": false,
+   "color": "#3b5a8a",
+   "email": "farai.sibanda@zb.co.zw"
+  },
+  {
+   "key": "u5",
+   "name": "Nyasha Gumbo",
+   "title": "Risk Analyst",
+   "dept": "Risk and Compliance",
+   "bio": "Works on KYC, fraud limits and anything that needs a second look before it goes live.",
+   "joined": "2020",
+   "is_admin": false,
+   "color": "#6b4a8a",
+   "email": "nyasha.gumbo@zb.co.zw"
+  },
+  {
+   "key": "u6",
+   "name": "Tapiwa Dube",
+   "title": "Head of Digital Channels",
+   "dept": "Executive",
+   "bio": "Sponsors the idea programme. Sets the challenges and reviews the top ranked ideas every week.",
+   "joined": "2012",
+   "is_admin": true,
+   "color": "#8a3b3b",
+   "email": "tapiwa.dube@zb.co.zw"
+  },
+  {
+   "key": "u7",
+   "name": "Chipo Marufu",
+   "title": "Customer Experience Lead",
+   "dept": "Retail Banking",
+   "bio": "Listens to complaints for a living, then tries to remove the reason for them.",
+   "joined": "2017",
+   "is_admin": false,
+   "color": "#4a6b2f",
+   "email": "chipo.marufu@zb.co.zw"
+  },
+  {
+   "key": "u8",
+   "name": "Blessing Moyo",
+   "title": "Product Officer",
+   "dept": "ZB Life",
+   "bio": "Designs micro-insurance products that ride on payments people already make.",
+   "joined": "2019",
+   "is_admin": false,
+   "color": "#2e6a7a",
+   "email": "blessing.moyo@zb.co.zw"
+  },
+  {
+   "key": "u9",
+   "name": "Munyaradzi Shumba",
+   "title": "Network Engineer",
+   "dept": "IT Infrastructure",
+   "bio": "Keeps branch networks up. Quietly interested in replacing paper with tablets.",
+   "joined": "2015",
+   "is_admin": false,
+   "color": "#5b5148",
+   "email": "munyaradzi.shumba@zb.co.zw"
+  }
+ ],
+ "challenges": [
+  {
+   "key": "c1",
+   "title": "Shorter queues for cash withdrawals",
+   "brief": "Branches see long queues on paydays. We want ideas that cut waiting time for cash withdrawals without adding staff.",
+   "keywords": [
+    "withdraw",
+    "queue",
+    "cash",
+    "atm",
+    "payday",
+    "branch",
+    "wait"
+   ],
+   "deadline": "2026-10-30",
+   "by": "u6",
+   "posted_h": -192
+  },
+  {
+   "key": "c2",
+   "title": "Faster account opening for small businesses",
+   "brief": "Opening an SME account takes too many visits. Show us how to get a business transacting in days, not weeks.",
+   "keywords": [
+    "sme",
+    "business",
+    "onboard",
+    "account",
+    "kyc",
+    "document",
+    "digital"
+   ],
+   "deadline": "2026-11-14",
+   "by": "u6",
+   "posted_h": -360
+  },
+  {
+   "key": "c3",
+   "title": "Paper-light branches",
+   "brief": "Every branch prints and files thousands of forms a month. Which forms can go digital first, and how?",
+   "keywords": [
+    "paper",
+    "form",
+    "print",
+    "sign",
+    "tablet",
+    "file",
+    "digital"
+   ],
+   "deadline": "2026-11-30",
+   "by": "u6",
+   "posted_h": -480
+  }
+ ],
+ "ideas": [
+  {
+   "key": "i1",
+   "num": 141,
+   "author": "u2",
+   "challenge": "c1",
+   "status": "Pilot",
+   "created_h": -144,
+   "likes": 41,
+   "shares": 6,
+   "title": "Pre-booked cash pickup slots",
+   "summary": "Customers book a 10-minute window on mobile banking, and a teller pre-counts the cash before they arrive. Collection happens at a dedicated counter, away from the main queue.",
+   "body": [
+    "On payday our branch serves about three times its normal withdrawal volume between 08:00 and 11:00. Most of that time is spent counting notes at the counter while the queue grows behind each customer.",
+    "The idea is simple. A customer opens mobile banking, picks an amount and a 10-minute pickup slot, and confirms with their PIN. The amount is held on the account straight away. Back office staff pre-count and seal the cash in labelled envelopes in the quiet hour before opening.",
+    "At the branch, the customer goes to a pickup counter, shows ID and a one-time code, and leaves. In a manual dry run each pickup took under 90 seconds.",
+    "We ran a two-week pilot with 40 volunteer customers. Their average payday wait dropped from 47 minutes to 6 minutes. The attached sheet has the counts by day, and the flow document covers what happens to cash that is never collected."
+   ],
+   "docs": [
+    {
+     "n": "Pickup_slot_flow.pdf",
+     "s": "1.2 MB"
+    },
+    {
+     "n": "Payday_queue_counts.xlsx",
+     "s": "340 KB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u7",
+     "t": "The 6 minute figure is impressive. What happens to the envelope if someone does not show up?",
+     "at_h": -120
+    },
+    {
+     "u": "u2",
+     "t": "Unclaimed envelopes go back to the vault at 14:00 and the hold on the account is released automatically.",
+     "at_h": -117
+    },
+    {
+     "u": "u6",
+     "t": "Good evidence. Let us talk about three more branches before the December payday.",
+     "at_h": -48
+    }
+   ]
+  },
+  {
+   "key": "i2",
+   "num": 143,
+   "author": "u3",
+   "challenge": "c1",
+   "status": "Prototype",
+   "created_h": -96,
+   "likes": 37,
+   "shares": 9,
+   "title": "Cardless ATM withdrawals with one-time codes",
+   "summary": "Generate a 6-digit code in the app and withdraw at any ZB ATM without a card. Card problems stop sending people into the banking hall just to get cash.",
+   "body": [
+    "A large share of the people at the enquiries desk on payday are there because of a card: blocked, retained by the ATM, or a forgotten PIN. Most of them only want cash.",
+    "With this feature the customer enters an amount in the app and gets a 6-digit code that is valid for 30 minutes. At the ATM they choose \"Cardless withdrawal\", type their phone number and the code, and take the cash.",
+    "The prototype runs on the Hub test environment against a mock ATM switch. Codes are bound to the registered device and capped at US$200 per code. The next step is a conversation with our switch provider about support for code-based transactions."
+   ],
+   "docs": [
+    {
+     "n": "Cardless_ATM_architecture.pdf",
+     "s": "2.4 MB"
+    },
+    {
+     "n": "Prototype_screens.pptx",
+     "s": "5.1 MB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u5",
+     "t": "From a risk point of view, cap the amount and bind the code to the device. Daily limits per customer too.",
+     "at_h": -72
+    },
+    {
+     "u": "u3",
+     "t": "Agreed. The prototype already caps at US$200 per code and only works from the registered device.",
+     "at_h": -70
+    }
+   ]
+  },
+  {
+   "key": "i3",
+   "num": 146,
+   "author": "u7",
+   "challenge": "c1",
+   "status": "Idea",
+   "created_h": -48,
+   "likes": 18,
+   "shares": 2,
+   "title": "Queue tickets that text you when it is your turn",
+   "summary": "Customers take a ticket at the door, leave, and get an SMS when five people are ahead of them. The banking hall stops being a waiting room.",
+   "body": [
+    "People do not mind waiting as much as they mind standing. Most of our payday complaints mention the standing, the heat and not knowing how long it will take.",
+    "Our ticket machines already know each customer's position. If the ticket asks for a phone number, the queue system can send an SMS when the customer is five places away, so they can wait in the car or do their shopping nearby.",
+    "This needs a small change to the ticket screen and an SMS integration. I do not know yet what the queue vendor supports, so that is the first thing to check."
+   ],
+   "docs": [
+    {
+     "n": "Queue_SMS_mockup.pdf",
+     "s": "680 KB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u9",
+     "t": "Our SMS gateway can handle this volume. I can check the cost per message.",
+     "at_h": -24
+    }
+   ]
+  },
+  {
+   "key": "i4",
+   "num": 138,
+   "author": "u4",
+   "challenge": "c2",
+   "status": "Demo",
+   "created_h": -216,
+   "likes": 29,
+   "shares": 5,
+   "title": "WhatsApp onboarding assistant for small businesses",
+   "summary": "SME owners start account opening on WhatsApp, send their documents as photos, and get a checklist of what is still missing before they come to a branch.",
+   "body": [
+    "Most of my new SME clients come to the branch three or four times before their account is open. Each visit is usually about one missing document.",
+    "The assistant asks the owner a few questions, tells them exactly which documents their type of business needs, and accepts photos of each one. A relationship manager reviews the pack before the client is invited in, so the branch visit is only for signing.",
+    "We have a clickable demo with the Hub that walks through a sole trader and a private limited company. The demo script is attached."
+   ],
+   "docs": [
+    {
+     "n": "SME_onboarding_journey.pdf",
+     "s": "1.8 MB"
+    },
+    {
+     "n": "Demo_script.docx",
+     "s": "96 KB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u5",
+     "t": "We would need to store the photos inside our own systems, not on the phone or in WhatsApp history.",
+     "at_h": -192
+    },
+    {
+     "u": "u4",
+     "t": "Yes, the demo moves each photo to our document store and deletes it from the chat session.",
+     "at_h": -168
+    }
+   ]
+  },
+  {
+   "key": "i5",
+   "num": 135,
+   "author": "u5",
+   "challenge": "c2",
+   "status": "Idea",
+   "created_h": -288,
+   "likes": 22,
+   "shares": 3,
+   "title": "One KYC record across the ZB group",
+   "summary": "Customers who already passed KYC at ZB Bank should not repeat it for ZB Life or the building society. One verified record, shared with the customer's consent.",
+   "body": [
+    "Today a customer who banks with us and then buys a ZB Life policy goes through identity checks twice, with the same documents.",
+    "A shared KYC record, kept by Risk and Compliance, would let each group company reuse a verified identity when the customer agrees. Each company would still run its own product checks.",
+    "The attached sheet lists the fields each company collects today and where they overlap. Legal review on data sharing between group companies is the first step."
+   ],
+   "docs": [
+    {
+     "n": "KYC_data_fields.xlsx",
+     "s": "210 KB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u8",
+     "t": "This would cut our policy onboarding time a lot. Happy to test with ZB Life.",
+     "at_h": -240
+    }
+   ]
+  },
+  {
+   "key": "i6",
+   "num": 144,
+   "author": "u9",
+   "challenge": "c3",
+   "status": "Prototype",
+   "created_h": -120,
+   "likes": 25,
+   "shares": 4,
+   "title": "Tablet signing for branch forms",
+   "summary": "Replace the 14 most common paper forms with tablet forms that customers sign on screen. Signed PDFs file themselves in the document system.",
+   "body": [
+    "I counted the forms printed at two branches over a month. Fourteen forms make up most of the paper, and most of them are re-typed into a system later.",
+    "A tablet at each service desk would show the form already filled from the customer's record. The customer checks it, signs with a stylus, and the signed PDF goes straight into the document system with the right reference.",
+    "I have a working prototype for the address change form on a spare tablet. The inventory of forms and the prototype screens are attached."
+   ],
+   "docs": [
+    {
+     "n": "Form_inventory.xlsx",
+     "s": "120 KB"
+    },
+    {
+     "n": "Tablet_prototype.pdf",
+     "s": "2.0 MB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u7",
+     "t": "Customers will love not filling the same details again.",
+     "at_h": -96
+    }
+   ]
+  },
+  {
+   "key": "i7",
+   "num": 121,
+   "author": "u8",
+   "challenge": null,
+   "status": "Launched",
+   "created_h": -816,
+   "likes": 52,
+   "shares": 11,
+   "title": "Micro-insurance bundled with school fees payments",
+   "summary": "Parents paying school fees through ZB can add US$1 a month of cover that pays the rest of the term's fees if the payer dies or becomes disabled.",
+   "body": [
+    "Parents already pay school fees through our channels every term. Adding cover at that moment costs them almost nothing in effort.",
+    "The cover pays outstanding fees for the current term directly to the school. Claims need a death certificate or a medical report and are settled within ten working days.",
+    "The product went live with three partner schools this term. The Q3 uptake report is attached."
+   ],
+   "docs": [
+    {
+     "n": "Product_sheet.pdf",
+     "s": "450 KB"
+    },
+    {
+     "n": "Uptake_report_Q3.pdf",
+     "s": "1.1 MB"
+    }
+   ],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u4",
+     "t": "Some of my SME clients run private schools. Can I introduce them?",
+     "at_h": -480
+    },
+    {
+     "u": "u8",
+     "t": "Please do, send them my way.",
+     "at_h": -456
+    }
+   ]
+  },
+  {
+   "key": "i8",
+   "num": 149,
+   "author": "me",
+   "challenge": "c1",
+   "status": "Idea",
+   "created_h": -24,
+   "likes": 9,
+   "shares": 1,
+   "title": "Agent cash-out at partner retailers on payday",
+   "summary": "Let customers withdraw small amounts at partner supermarkets using a code from the app, so fewer people need the branch at all on payday.",
+   "body": [
+    "Supermarkets near our branches hold a lot of cash at the end of each day and pay to have it collected.",
+    "Customers could generate a withdrawal code in the app and collect up to a set amount at a partner till. The retailer is paid back electronically the same day, so it also moves less cash in and out of the store.",
+    "I have not costed this yet. It could reuse the code flow from the cardless ATM prototype."
+   ],
+   "docs": [],
+   "imgs": [],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u4",
+     "t": "Retail partners already ask us for cash deposit services. This could work both ways.",
+     "at_h": -20
+    }
+   ]
+  },
+  {
+   "key": "i9",
+   "num": 132,
+   "author": "me",
+   "challenge": "c1",
+   "status": "Prototype",
+   "created_h": -336,
+   "likes": 31,
+   "shares": 4,
+   "title": "Payday cash forecasting from payroll calendars",
+   "summary": "Use the payroll dates of large employers that bank with us to forecast which branches need extra cash and tellers on which days.",
+   "body": [
+    "Branch cash orders are based mostly on last month. Paydays move, and when they do, branches run short or hold too much cash.",
+    "Many large employers pay salaries through us, so we know their pay dates in advance. Mapping each employer's staff to the branches they use gives a day-by-day forecast of withdrawals per branch.",
+    "I built a spreadsheet model and back-tested it on four months of data for six branches. The forecast and the back-test are attached."
+   ],
+   "docs": [
+    {
+     "n": "Forecast_model.xlsx",
+     "s": "820 KB"
+    },
+    {
+     "n": "Branch_backtest.pdf",
+     "s": "1.4 MB"
+    }
+   ],
+   "imgs": [],
+   "approved": true,
+   "approvedBy": "u6",
+   "approved_h": -72,
+   "comments": [
+    {
+     "u": "u2",
+     "t": "This matched our payday counts closely in the back-test. Treasury should see it.",
+     "at_h": -240
+    },
+    {
+     "u": "u6",
+     "t": "Approved for a December test with Treasury.",
+     "at_h": -72
+    }
+   ]
+  },
+  {
+   "key": "i10",
+   "num": 151,
+   "author": "u4",
+   "challenge": "c2",
+   "status": "Prototype",
+   "created_h": -3,
+   "likes": 34,
+   "shares": 7,
+   "title": "One dashboard for every SME account request",
+   "summary": "A single screen for relationship managers that shows each small business's onboarding stage, missing documents and next action, so no application sits unnoticed.",
+   "body": [
+    "Today an SME onboarding file lives across email, WhatsApp and a branch folder. Nobody can see at a glance which applications are stuck.",
+    "The attached screens show a dashboard with a task list per client, a calendar of branch appointments and a progress ring for each application. Relationship managers would open one page each morning and know exactly who to chase.",
+    "This is a design prototype only. The next step is to connect it to the document store used by the WhatsApp assistant."
+   ],
+   "docs": [
+    {
+     "n": "Dashboard_screens.pdf",
+     "s": "3.2 MB"
+    }
+   ],
+   "imgs": [
+    "img/dashboard.jpg"
+   ],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u6",
+     "t": "The progress rings are a good idea. Can managers filter by branch?",
+     "at_h": -1
+    }
+   ]
+  },
+  {
+   "key": "i11",
+   "num": 152,
+   "author": "u7",
+   "challenge": null,
+   "status": "Idea",
+   "created_h": -20,
+   "likes": 27,
+   "shares": 8,
+   "title": "Drone roof inspections for property-backed loans",
+   "summary": "Use drone photos and a 3D digital twin of a house to check its roof condition before approving a mortgage, instead of sending a valuer on site each time.",
+   "body": [
+    "Before we lend against a property, someone has to climb up and check the roof. It is slow, costs the customer money and is not always safe.",
+    "A drone flies over the roof and takes around 18 photos. The photos are turned into a 3D model that records the roof condition, the date of the last inspection and any issue found. Our credit team opens the model instead of travelling to the site.",
+    "The images show the physical inspection and the digital twin side by side. I would like to test this on ten properties with a partner who already builds these models."
+   ],
+   "docs": [
+    {
+     "n": "Inspection_report_sample.pdf",
+     "s": "2.6 MB"
+    }
+   ],
+   "imgs": [
+    "img/inzila-drone.jpg",
+    "img/inzila-model.jpg"
+   ],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u5",
+     "t": "We would need to confirm that aviation rules allow drone flights near the properties. Otherwise this looks promising.",
+     "at_h": -15
+    }
+   ]
+  },
+  {
+   "key": "i12",
+   "num": 153,
+   "author": "u9",
+   "challenge": null,
+   "status": "Idea",
+   "created_h": -52,
+   "likes": 46,
+   "shares": 12,
+   "title": "Send a ZB team to the Zimbabwe Business Innovation Forum",
+   "summary": "ZBIF runs on 27 and 28 April 2027 in Bulawayo and brings real business problems together with practical solutions. We should go with a team and a stand.",
+   "body": [
+    "The forum offers innovation showcases, business matchmaking and private deal rooms. Many of the SME customers we want to reach will be in the same hall.",
+    "I suggest we send five people from Digital Banking, SME Banking and Risk. Each would bring one idea from this app to present, and we would use the deal rooms to meet fintech partners.",
+    "The poster is attached. Registration details are on zbif.co.zw."
+   ],
+   "docs": [
+    {
+     "n": "ZBIF_poster.pdf",
+     "s": "1.5 MB"
+    }
+   ],
+   "imgs": [
+    "img/zbif.jpg"
+   ],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u2",
+     "t": "I can present the payday pickup slot pilot. Count me in.",
+     "at_h": -48
+    },
+    {
+     "u": "u6",
+     "t": "Let us decide on the stand budget in January.",
+     "at_h": -24
+    }
+   ]
+  },
+  {
+   "key": "i13",
+   "num": 154,
+   "author": "u3",
+   "challenge": null,
+   "status": "Idea",
+   "created_h": -74,
+   "likes": 15,
+   "shares": 3,
+   "title": "VR branch tours for new customers and graduate hires",
+   "summary": "Let people explore a ZB branch in a headset before they visit, so first-time customers know where to go and new staff learn the floor on day one.",
+   "body": [
+    "Many first-time customers tell us they feel lost in a branch. New graduates also spend their first week just learning where things are.",
+    "A short VR walk-through would show the ATM lobby, the service desks and the pickup counter. A headset at career fairs and in a few branches would be enough to start.",
+    "The image is a concept shot from a similar experience built by a local studio. I have asked them for a rough quote."
+   ],
+   "docs": [],
+   "imgs": [
+    "img/smile-vr.jpg"
+   ],
+   "approved": false,
+   "approvedBy": null,
+   "approved_h": null,
+   "comments": [
+    {
+     "u": "u8",
+     "t": "Graduate onboarding is a clear use case. HR could help fund a pilot.",
+     "at_h": -48
+    }
+   ]
+  }
+ ],
+ "convs": [
+  {
+   "with": "u3",
+   "msgs": [
+    {
+     "from": "u3",
+     "t": "Saw your agent cash-out idea. The one-time code flow from my cardless ATM prototype could be reused.",
+     "at_h": -6
+    },
+    {
+     "from": "me",
+     "t": "That would save a lot of work. Can we sit together on Thursday?",
+     "at_h": -5
+    },
+    {
+     "from": "u3",
+     "t": "Thursday 10:00 at the Hub works.",
+     "at_h": -4
+    }
+   ]
+  },
+  {
+   "with": "u2",
+   "msgs": [
+    {
+     "from": "u2",
+     "t": "Your forecasting model matched our payday counts almost exactly.",
+     "at_h": -48
+    },
+    {
+     "from": "me",
+     "t": "Thank you. Can I use your branch for the December test?",
+     "at_h": -47
+    }
+   ]
+  },
+  {
+   "with": "u6",
+   "msgs": [
+    {
+     "from": "u6",
+     "t": "Please send me the back-test summary before Friday.",
+     "at_h": -72
+    }
+   ]
+  }
+ ],
+ "notes": [
+  {
+   "id": "n1",
+   "type": "approval",
+   "idea": "i9",
+   "from": "u6",
+   "at": -72,
+   "unread": true,
+   "email": "e0",
+   "note": "Strong work. Treasury wants to test this for the December payday cycle. Can you join a call next week?"
+  },
+  {
+   "id": "n2",
+   "type": "like",
+   "idea": "i8",
+   "from": "u2",
+   "at": -5,
+   "unread": true
+  },
+  {
+   "id": "n3",
+   "type": "comment",
+   "idea": "i8",
+   "from": "u4",
+   "at": -20,
+   "unread": true
+  },
+  {
+   "id": "n4",
+   "type": "like",
+   "idea": "i9",
+   "from": "u7",
+   "at": -48,
+   "unread": false
+  },
+  {
+   "id": "n5",
+   "type": "challenge",
+   "challenge": "c1",
+   "from": "u6",
+   "at": -192,
+   "unread": false
+  }
+ ]
+}

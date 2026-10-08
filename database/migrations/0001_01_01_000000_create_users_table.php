@@ -16,7 +16,16 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password')->nullable();
+            $table->string('title')->nullable();
+            $table->string('dept')->nullable();
+            $table->text('bio')->nullable();
+            $table->string('joined', 8)->nullable();
+            $table->boolean('is_admin')->default(false);
+            $table->string('color', 9)->default('#0d4a36');
+            $table->string('avatar_path')->nullable();
+            $table->string('phone', 20)->nullable()->unique();
+            $table->boolean('whatsapp_opt_in')->default(true);
             $table->rememberToken();
             $table->timestamps();
         });

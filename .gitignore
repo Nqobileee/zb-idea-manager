@@ -25,3 +25,8 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+/posts
+/android/app/build
+/android/.gradle
+/android/local.properties
