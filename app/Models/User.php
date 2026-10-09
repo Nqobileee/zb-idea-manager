@@ -27,6 +27,7 @@ class User extends Authenticatable
             'whatsapp_opt_in' => 'boolean',
             'wa_greeted_on' => 'date',
             'must_change_password' => 'boolean',
+            'wa_welcomed_at' => 'datetime',
         ];
     }
 

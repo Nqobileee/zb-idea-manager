@@ -5,6 +5,7 @@ use App\Http\Controllers\ZernioController;
 use App\Livewire\ActivityFeed;
 use App\Livewire\Admin;
 use App\Livewire\Auth\ChangePassword;
+use App\Livewire\Super;
 use App\Livewire\Auth\Login;
 use App\Livewire\Challenges;
 use App\Livewire\ChallengeCreate;
@@ -32,6 +33,8 @@ Route::middleware('zernio')->prefix('api/zernio')->controller(ZernioController::
     Route::post('/notifications', 'notifications');
     Route::post('/notifications/list', 'notificationList');
     Route::post('/pipeline', 'pipeline');
+    Route::post('/account/email', 'accountEmail');
+    Route::post('/account/code', 'accountCode');
     Route::post('/account/check', 'accountCheck');
     Route::post('/account/switch', 'accountSwitch');
     Route::post('/account/switch/pick', 'accountSwitchPick');
@@ -74,6 +77,18 @@ Route::post('/logout', function () {
 
     return redirect()->route('login');
 })->name('logout');
+
+// Super admin portal: separate sign-in, credentials from the environment
+Route::prefix('super')->group(function () {
+    Route::get('/login', Super\Login::class)->name('super.login');
+    Route::post('/logout', function () {
+        session()->forget('super_admin');
+        session()->regenerateToken();
+
+        return redirect()->route('super.login');
+    })->name('super.logout');
+    Route::middleware('super')->get('/', Super\Portal::class)->name('super.portal');
+});
 
 Route::middleware('auth')->get('/password/change', ChangePassword::class)->name('password.change');
 

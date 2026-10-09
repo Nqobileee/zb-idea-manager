@@ -21,11 +21,11 @@
             <form wire:submit="signIn" class="space-y-4">
                 <div>
                     <h2 class="font-display text-[30px] font-bold tracking-tight">Sign in</h2>
-                    <p class="hint">Use the email and password you made with the Smile Factory chatbot.</p>
+                    <p class="hint">Use your phone number or email and your password.</p>
                 </div>
                 <div>
-                    <label class="lbl" for="email">Email address</label>
-                    <input id="email" type="email" wire:model="email" class="inp" placeholder="you@example.com" autocomplete="email" autofocus required>
+                    <label class="lbl" for="email">Phone number or email</label>
+                    <input id="email" type="text" wire:model="email" class="inp" placeholder="077 123 4567 or you@example.com" autocomplete="username" inputmode="email" autofocus required>
                     @error('email')<p class="err">{{ $message }}</p>@enderror
                 </div>
                 <div>

@@ -14,6 +14,18 @@ return [
         'member' => ['email' => env('IDEAS_DEMO_MEMBER_EMAIL'), 'password' => env('IDEAS_DEMO_MEMBER_PASSWORD')],
     ],
 
+    // Super admin portal at /super. Its own sign-in, kept in the private environment (not a row in `users`).
+    // Leave either empty to switch the portal off.
+    'super_admin' => [
+        'email' => env('IDEAS_SUPER_EMAIL'),
+        'password' => env('IDEAS_SUPER_PASSWORD'),
+    ],
+
+    // Temporary password shown to a new WhatsApp member. Empty (recommended) = a random one per member.
+    // Setting a fixed value such as Pass123 means anyone who knows a member's phone number can sign in as them
+    // until that member changes it.
+    'temp_password' => env('IDEAS_TEMP_PASSWORD', ''),
+
     // Generic password given to old accounts that had none (see `php artisan ideas:set-default-passwords`).
     // Signing in with it always forces a password change.
     'default_password' => env('IDEAS_DEFAULT_PASSWORD', 'Pass123'),

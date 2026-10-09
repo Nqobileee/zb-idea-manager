@@ -41,31 +41,6 @@ class ZernioTest extends TestCase
         $this->postJson('/api/zernio/challenges', [], ['X-Zernio-Secret' => ''])->assertStatus(503);
     }
 
-    public function test_link_creates_a_new_person_with_the_chatbot_password(): void
-    {
-        $this->call_('/link', ['email' => 'new.founder@example.com', 'phone' => '263772223333', 'contact' => ['name' => 'New Founder'], 'category' => 'Founder', 'password' => 'chat-made-pass'])
-            ->assertOk()->assertJson(['ok' => true, 'first_name' => 'New', 'is_executive' => false]);
-        $u = User::where('email', 'new.founder@example.com')->firstOrFail();
-        $this->assertSame('263772223333', $u->phone);
-        $this->assertSame('Hub member', $u->role_label);
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('chat-made-pass', $u->password));
-
-        // asking again from the same number finds the same account and never changes the password
-        $this->call_('/link', ['email' => 'new.founder@example.com', 'phone' => '263772223333', 'password' => 'other'])->assertJson(['user_id' => $u->id]);
-        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('chat-made-pass', $u->fresh()->password));
-    }
-
-    public function test_an_email_typed_in_chat_cannot_take_over_an_existing_account(): void
-    {
-        $exec = User::where('is_admin', true)->firstOrFail();
-        $this->call_('/link', ['email' => $exec->email, 'phone' => '263774445555', 'password' => 'attacker'])->assertStatus(409)->assertJson(['ok' => false]);
-        $this->assertNull($exec->fresh()->phone);
-        $this->assertFalse(\Illuminate\Support\Facades\Hash::check('attacker', (string) $exec->fresh()->password));
-
-        // and an unknown number cannot borrow someone's account just by sending their email
-        $this->call_('/reports', ['email' => $exec->email, 'phone' => '263774445555', 'reportChoice' => 'Programme summary'])->assertNotFound();
-    }
-
     public function test_unknown_people_are_told_to_register(): void
     {
         $this->call_('/ideas/mine', ['email' => 'nobody@example.com', 'phone' => '263779990000'])->assertNotFound()->assertJson(['ok' => false]);
@@ -425,5 +400,142 @@ class ZernioTest extends TestCase
         $this->assertNull($a->fresh()->phone);
         $this->call_('/account/login', $c + ['regEmail' => $a->email, 'regPassword' => 'pass-a-12345'])->assertJson(['ok' => true]);
         $this->assertSame($phone, $a->fresh()->phone);
+    }
+
+    public function test_an_unknown_number_becomes_a_general_member_with_a_temporary_password(): void
+    {
+        $body = ['contact' => ['phone' => '0771234567', 'name' => 'Pelagia Dube']];
+        $first = $this->call_('/link', $body)->assertOk()->assertJson(['ok' => true, 'is_new' => true, 'first_name' => 'Pelagia', 'is_executive' => false, 'phone' => '+263 77 123 4567'])->json();
+
+        $u = User::where('phone', '263771234567')->firstOrFail();
+        $this->assertSame('Pelagia Dube', $u->name);
+        $this->assertNull($u->email);
+        $this->assertSame('General', $u->role_label);
+        $this->assertSame('whatsapp', $u->source);
+        $this->assertTrue($u->must_change_password);
+        $this->assertNotSame('', $first['temp_password']);
+        $this->assertSame(10, strlen($first['temp_password']));
+        $this->assertNotSame($first['temp_password'], $u->password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check($first['temp_password'], $u->password));
+        $this->assertStringContainsString('/login', $first['portal_url']);
+
+        // the second call: not new, and the temporary password is never shown again
+        $this->call_('/link', $body)->assertJson(['is_new' => false, 'temp_password' => '']);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check($first['temp_password'], $u->fresh()->password));
+    }
+
+    public function test_the_fixed_temporary_password_can_be_switched_on_in_the_environment(): void
+    {
+        config(['ideas.temp_password' => 'Pass123']);
+        $r = $this->call_('/link', ['contact' => ['phone' => '263772000001', 'name' => 'Fixed Pass']])->json();
+        $this->assertSame('Pass123', $r['temp_password']);
+    }
+
+    public function test_existing_accounts_keep_working_and_see_no_welcome(): void
+    {
+        $u = User::where('is_admin', true)->firstOrFail();
+        $u->update(['phone' => '263772000002', 'wa_welcomed_at' => now()]); // the migration marks everyone who already exists as welcomed
+        $this->call_('/link', ['contact' => ['phone' => '263772000002']])->assertJson(['is_new' => false, 'temp_password' => '', 'is_executive' => true]);
+    }
+
+    public function test_web_sign_in_works_with_the_phone_in_any_format_and_forces_the_password_change(): void
+    {
+        $temp = $this->call_('/link', ['contact' => ['phone' => '263773000001', 'name' => 'Web Person']])->json('temp_password');
+        $u = User::where('phone', '263773000001')->firstOrFail();
+
+        foreach (['0773000001', '+263773000001', '263773000001', '077 300 0001'] as $format) {
+            auth()->logout();
+            \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', $format)->set('password', $temp)->call('signIn')->assertRedirect();
+            $this->assertAuthenticatedAs($u);
+        }
+        $this->get('/')->assertRedirect(route('password.change'));
+
+        auth()->logout();
+        \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', '0773000001')->set('password', 'wrong-pass')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
+    }
+
+    public function test_wrong_web_passwords_are_locked_by_phone_after_five_tries(): void
+    {
+        $this->call_('/link', ['contact' => ['phone' => '263773000002']]);
+        foreach (range(1, 5) as $i) {
+            \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', '0773000002')->set('password', 'bad'.$i)->call('signIn');
+        }
+        $u = User::where('phone', '263773000002')->first();
+        $u->update(['password' => \Illuminate\Support\Facades\Hash::make('right-pass-1')]);
+        \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', '+263 77 300 0002')->set('password', 'right-pass-1')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
+    }
+
+    public function test_account_email_links_a_free_email_and_never_reveals_the_owner(): void
+    {
+        $this->call_('/link', ['contact' => ['phone' => '263774000001']]);
+        $other = User::where('is_admin', false)->firstOrFail();
+        $c = ['contact' => ['phone' => '263774000001']];
+
+        $this->call_('/account/email', $c + ['leEmail' => 'not an email'])->assertOk()->assertJson(['ok' => false])->assertSee('valid email');
+        $taken = $this->call_('/account/email', $c + ['leEmail' => strtoupper($other->email)])->assertOk()->assertJson(['ok' => false]);
+        $taken->assertSee('already linked to another account');
+        $this->assertStringNotContainsString($other->name, $taken->getContent());
+        $this->assertNull(User::where('phone', '263774000001')->first()->email);
+
+        $this->call_('/account/email', $c + ['leEmail' => 'New.Person@Example.com'])->assertJson(['ok' => true])->assertSee('new.person@example.com');
+        $this->assertSame('new.person@example.com', User::where('phone', '263774000001')->first()->email);
+        $this->call_('/account/email', ['contact' => ['phone' => '263774999999'], 'leEmail' => 'x@example.com'])->assertOk()->assertJson(['ok' => false]);
+    }
+
+    public function test_the_executive_code_upgrades_the_account_and_ordinary_words_are_ignored(): void
+    {
+        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
+        $c = ['contact' => ['phone' => '263775000001', 'name' => 'Chipo Dube']];
+
+        // ordinary words never count towards a lockout, however many times they are sent
+        foreach (['Pipeline', 'menu', 'challenges', 'Reports', 'Top ideas', 'yes please'] as $word) {
+            $this->call_('/account/code', $c + ['switchCode' => $word])->assertOk()->assertExactJson(['ok' => false]);
+        }
+        $this->assertNull(User::where('phone', '263775000001')->first());
+
+        // the correct code creates the member first when the number is unknown, then makes them an executive
+        $this->call_('/account/code', $c + ['switchCode' => ' zb-exec-2026 '])->assertJson(['ok' => true, 'elevated' => true])->assertSee('Welcome, Chipo');
+        $u = User::where('phone', '263775000001')->firstOrFail();
+        $this->assertTrue($u->is_admin);
+
+        // created by the code first: the welcome and temporary password are still shown on the first /link
+        $this->call_('/link', $c)->assertJson(['is_new' => true, 'is_executive' => true])->assertJsonMissing(['temp_password' => '']);
+        $this->call_('/account/code', $c + ['switchCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => true, 'elevated' => true])->assertSee('already have');
+    }
+
+    public function test_five_wrong_code_attempts_lock_the_number_but_words_still_pass(): void
+    {
+        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
+        $c = ['contact' => ['phone' => '263775000002']];
+        foreach (range(1, 5) as $i) {
+            $this->call_('/account/code', $c + ['switchCode' => 'ZB-WRONG-'.$i])->assertExactJson(['ok' => false]);
+        }
+        $this->call_('/account/code', $c + ['switchCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => false, 'locked' => true]);
+        $this->call_('/account/code', $c + ['switchCode' => 'Pipeline'])->assertExactJson(['ok' => false]);
+
+        config(['ideas.executive_code' => '']);
+        $this->call_('/account/code', ['contact' => ['phone' => '263775000003'], 'switchCode' => 'ZB-ANYTHING'])->assertExactJson(['ok' => false]);
+    }
+
+    public function test_the_temporary_password_never_appears_in_the_logs(): void
+    {
+        config(['ideas.temp_password' => 'SecretTemp99', 'ideas.executive_code' => 'ZB-EXEC-2026']);
+        \Illuminate\Support\Facades\Log::spy();
+        $this->call_('/link', ['contact' => ['phone' => '263776000001']]);
+        $this->call_('/account/code', ['contact' => ['phone' => '263776000001'], 'switchCode' => 'ZB-EXEC-2026']);
+        \Illuminate\Support\Facades\Log::shouldNotHaveReceived('info', fn ($m, $ctx = []) => str_contains(json_encode([$m, $ctx]), 'SecretTemp99'));
+        \Illuminate\Support\Facades\Log::shouldNotHaveReceived('notice', fn ($m, $ctx = []) => str_contains(json_encode([$m, $ctx]), 'SecretTemp99'));
+        $this->assertTrue(true);
+    }
+
+    public function test_members_without_an_email_can_be_approved_without_errors(): void
+    {
+        $this->call_('/link', ['contact' => ['phone' => '263777000001', 'name' => 'No Email']]);
+        $u = User::where('phone', '263777000001')->first();
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $u->id, 'title' => 'No mailbox', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
+        app(\App\Services\IdeaActions::class)->approve($idea, User::where('is_admin', true)->first());
+        $this->assertTrue($idea->fresh()->approved);
     }
 }

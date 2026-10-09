@@ -236,9 +236,10 @@ class IdeaActions
         return $this->email('Digest', $to->email, 'ranker@ideas.zb.co.zw', 'Top 5 ideas: '.($challenge?->title ?? 'All ideas'), "Hi {$to->first_name},\n\nThese are the five highest ranked ideas right now. Open ZB Idea Manager to read them in full.\n\n{$lines}\n\nZB Idea Manager");
     }
 
-    public function email(string $type, string $to, string $from, string $subject, string $body): SentEmail
+    public function email(string $type, ?string $to, ?string $from, string $subject, string $body): SentEmail
     {
-        return Outbox::send($type, $to, $from, $subject, $body);
+        // members who joined with only a WhatsApp number have no email: the row is logged and nothing is sent
+        return Outbox::send($type, $to ?: 'none@'.\App\Services\PhoneAccounts::PLACEHOLDER_DOMAIN, $from ?: (string) config('mail.from.address'), $subject, $body);
     }
 
     private function notify(User $to, string $type, User $actor, Idea $idea, ?string $note = null): void

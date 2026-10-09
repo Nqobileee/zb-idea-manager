@@ -44,7 +44,7 @@ class ZernioController extends Controller
 
     private function phone(Request $r): ?string
     {
-        $p = preg_replace('/\D/', '', (string) ($this->input($r, 'phone') ?? data_get($r->all(), 'contact.phone_number') ?? ''));
+        $p = PhoneAccounts::normalize((string) ($this->input($r, 'phone') ?? data_get($r->all(), 'contact.phone_number') ?? ''));
 
         return $p ?: null;
     }
@@ -133,36 +133,91 @@ class ZernioController extends Controller
 
     // ---- account ------------------------------------------------------------------
 
+    /**
+     * The first call of a conversation. The WhatsApp number identifies the person; an unknown number becomes a General
+     * member straight away (no email, a temporary password). `is_new` is true until the welcome has been shown once.
+     */
     public function link(Request $r): JsonResponse
     {
-        $email = $this->email($r);
         $phone = $this->phone($r);
         if (! $phone) {
-            return $this->fail('I need your WhatsApp number to link your account.', 422);
+            return $this->fail('I need your WhatsApp number to set up your account.', 422);
         }
-        $user = User::where('phone', $phone)->first();
-        if (! $user) {
-            // The chat email is unverified, so it can never take over an account that already exists.
-            if ($email && User::where('email', $email)->exists()) {
-                return $this->fail('That email already belongs to an Idea Manager account. Please contact the programme team.', 409);
+        $user = User::where('phone', $phone)->first() ?? $this->accounts->createMember($phone, (string) ($this->input($r, 'name') ?? data_get($r->all(), 'contact.name')));
+
+        $isNew = false;
+        $temp = '';
+        if (PhoneAccounts::phoneOnly() && $user->wa_welcomed_at === null) {
+            $isNew = true;
+            if ($user->must_change_password) {
+                // only a hash is stored, so a fresh temporary password is issued for the welcome
+                $temp = $this->accounts->tempPassword();
+                $user->password = Hash::make($temp);
             }
-            $password = (string) $this->input($r, 'password', '');
-            $user = User::create([
-                'name' => trim((string) $this->input($r, 'name')) ?: 'Member',
-                'email' => $email ?? $phone.'@'.PhoneAccounts::PLACEHOLDER_DOMAIN,
-                'phone' => $phone,
-                'is_admin' => false,
-                'password' => $password !== '' ? Hash::make($password) : null, // the password made in the chatbot, for web sign-in
-                'member_type' => stripos((string) $this->input($r, 'category'), 'employee') !== false ? 'employee' : 'hub_member',
-                'joined' => (string) now()->year,
-                'color' => '#049016',
-            ]);
+            $user->wa_welcomed_at = now();
+            $user->save();
         }
 
         $this->recordLink($phone, $user);
-        [$greeting, $greeted] = $this->greeting($user);
 
-        return $this->reply("Linked, {$user->first_name}.", ['user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin, 'greeting' => $greeting, 'greeted_today' => $greeted]);
+        return $this->reply("Linked, {$user->first_name}.", [
+            'user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin,
+            'is_new' => $isNew, 'phone' => PhoneAccounts::display($phone), 'temp_password' => $temp, 'portal_url' => route('login'),
+        ] + $this->greetingFields($user));
+    }
+
+    /** Optional: link an email address to the caller's account. */
+    public function accountEmail(Request $r): JsonResponse
+    {
+        $phone = $this->phone($r);
+        $user = $phone ? User::where('phone', $phone)->first() : null;
+        if (! $user) {
+            return $this->fail('Please say hi first so I can set up your account.');
+        }
+        $email = strtolower(trim((string) $this->input($r, 'leEmail', '')));
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->fail('That does not look like a valid email address.');
+        }
+        if (User::where('email', $email)->where('id', '!=', $user->id)->exists()) {
+            return $this->fail('That email is already linked to another account. Please use a different email, or contact the Smile Factory team.');
+        }
+        $user->update(['email' => $email]);
+
+        return $this->reply("Your email {$email} is now linked. You can also sign in with it on the website.");
+    }
+
+    /** Typing the executive access code in WhatsApp upgrades the account to Executive admin. Anything else is ignored. */
+    public function accountCode(Request $r): JsonResponse
+    {
+        $secret = (string) config('ideas.executive_code');
+        $phone = $this->phone($r);
+        $text = trim((string) $this->input($r, 'switchCode', ''));
+        $ignore = fn () => response()->json(['ok' => false]);
+        if ($secret === '' || ! $phone || $text === '') {
+            return $ignore();
+        }
+        // only text that looks like a code attempt can count against the lockout, so ordinary words never lock anyone out
+        $looksLikeCode = Str::startsWith(Str::lower($text), 'zb-') || (mb_strlen($text) === mb_strlen($secret) && str_contains($text, '-') === str_contains($secret, '-'));
+        $key = 'zernio-code:'.$phone;
+        if ($looksLikeCode && RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['ok' => false, 'locked' => true, 'message' => 'Too many wrong codes. Please try again in 15 minutes.']);
+        }
+        if (! hash_equals(Str::lower($secret), Str::lower($text))) {
+            if ($looksLikeCode) {
+                RateLimiter::hit($key, 900);
+            }
+
+            return $ignore();
+        }
+        RateLimiter::clear($key);
+        $user = User::where('phone', $phone)->first() ?? $this->accounts->createMember($phone, (string) ($this->input($r, 'name') ?? data_get($r->all(), 'contact.name')));
+        if ($user->is_admin) {
+            return $this->reply('You already have Executive admin access.', ['elevated' => true]);
+        }
+        $user->update(['is_admin' => true]);
+        \Log::notice('Executive admin granted from WhatsApp', ['user_id' => $user->id, 'phone' => $phone, 'at' => now()->toDateTimeString()]);
+
+        return $this->reply("Welcome, {$user->first_name}. You now have Executive admin access: you can post challenges, approve ideas and see reports and AI insights.", ['elevated' => true]);
     }
 
     /** The greeting fields every sign-in style reply carries, with a plain fallback so the bot's menu text is never empty. */

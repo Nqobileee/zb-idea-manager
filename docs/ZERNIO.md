@@ -160,3 +160,55 @@ It only returns accounts linked to that number and **never signs anyone in**. Th
 
 ### Long idea and challenge text: `message_more`
 `/ideas/detail` and `/challenges/detail`: when the text fits in one WhatsApp message, `message` ends with `View on the web: <link>` as before. When it does not, `message` is the first part ending "(continued)" and **`message_more`** holds the rest followed by the link. Send `message` first, then `message_more` if it is present. `message_more` is itself capped at about 4,000 characters; beyond that it ends "… (the rest is on the web)".
+
+## Update v7: phone-only sign-up (replaces email and password registration in the bot)
+
+New people are created from their WhatsApp number alone. Existing accounts are untouched.
+
+### Flow
+1. The person says "hi". The bot calls **`/link`** with `contact.phone` (any format; `0771234567`, `+263771234567` and `263771234567` are the same number) and `contact.name`.
+2. Unknown number: a **General** member is created at once: name from the WhatsApp profile (else "Member"), phone, **no email**, a hashed temporary password, `must_change_password = true`, `source = whatsapp`.
+3. The bot sends the welcome, offers to link an email (optional), and shows the website sign-in details from the fields below.
+4. Typing the executive access code at any time upgrades the account (`/account/code`).
+
+### `/link` reply fields (added)
+| Field | Meaning |
+|---|---|
+| `is_new` | `true` until the welcome has been shown once (`users.wa_welcomed_at`). Also true for someone created by `/account/code` first. |
+| `phone` | Display format, e.g. `+263 77 123 4567` |
+| `temp_password` | The temporary password, only on the call where `is_new` is true and the person still has to change it; otherwise `""` |
+| `portal_url` | The web sign-in page |
+`first_name`, `is_executive`, `greeting`, `greeted_today` and `menu_text` are as before.
+
+### Temporary password
+Random per member by default (10 letters and numbers). Only the hash is stored, so a fresh one is issued when the welcome is shown. To use one fixed password for everyone, set `IDEAS_TEMP_PASSWORD` (for example `Pass123`). **A fixed password means anyone who knows a member's phone number can sign in as them until they change it.** The bot just shows `temp_password`, so this can be switched on the server without touching the workflow. The password is never logged.
+
+### Website sign-in
+Phone number **or** email, plus password. The phone can be typed in any of the formats above. Someone who still has the temporary password is sent to the "choose a new password" page before anything else. Five wrong passwords lock that phone/email from that IP for 15 minutes.
+
+### `/account/email` (optional email)
+Reads `leEmail` and `contact.phone`. Always 200 with a non-empty message.
+| Case | Reply |
+|---|---|
+| Valid and free | `ok: true`, "Your email … is now linked. You can also sign in with it on the website." |
+| Used by another account | `ok: false`, "That email is already linked to another account…". The owner is never named. |
+| Invalid | `ok: false`, "That does not look like a valid email address." |
+
+### `/account/code` (executive access code)
+Reads `switchCode` (the text typed) and `contact.phone`. Compared with `IDEAS_EXECUTIVE_CODE`, trimmed and not case sensitive. Empty setting = upgrades are off.
+| Case | Reply |
+|---|---|
+| Correct | Member created first if the number is unknown; role set to Executive admin; `ok: true`, `elevated: true`, "Welcome, <name>. You now have Executive admin access…" |
+| Already an executive | `ok: true`, `elevated: true`, "You already have Executive admin access." |
+| Anything else | `{ "ok": false }`, no message. The bot ignores it. |
+| Locked | `ok: false`, `locked: true`, "Too many wrong codes…" |
+Only text that looks like a code attempt (starts with `ZB-`, or has the code's length and hyphen shape) counts as a wrong try, so words like "Pipeline" never lock anyone out. Five wrong attempts lock the number for 15 minutes. Every upgrade is written to the application log (user, phone, time).
+
+### Retired for the bot
+`/account/check`, `/account/login`, `/account/register`, `/account/switch` and `/account/switch/pick` still work but the bot no longer calls them.
+
+### Migration
+`php artisan migrate --force` makes `users.email` optional and adds `wa_welcomed_at` and `source`; it marks everyone who exists today as already welcomed. Run it **before** relying on this. Until it has run, new numbers get a placeholder email so nothing breaks.
+
+### Not built
+The `smilefactory.tech` account-creation job: there is no Smile Factory API or credentials in this repository.

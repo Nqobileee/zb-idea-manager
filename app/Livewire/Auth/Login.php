@@ -2,7 +2,11 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
+use App\Services\PhoneAccounts;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -24,30 +28,34 @@ class Login extends Component
 
     public function signIn()
     {
-        $this->validate(['email' => 'required|email', 'password' => 'required|string'], [], ['email' => 'email address']);
-        $email = strtolower(trim($this->email));
-        $key = 'login:'.request()->ip().'|'.$email;
+        $this->validate(['email' => 'required|string', 'password' => 'required|string'], [], ['email' => 'phone number or email']);
+        $id = trim($this->email);
+        $byEmail = str_contains($id, '@');
+        $id = $byEmail ? strtolower($id) : PhoneAccounts::normalize($id);
+        $key = 'login:'.request()->ip().'|'.$id;
         if (RateLimiter::tooManyAttempts($key, 5)) {
-            $this->error = 'Too many attempts. Try again in a few minutes.';
+            $this->error = 'Too many attempts. Try again in 15 minutes.';
 
             return;
         }
-        if (! Auth::attempt(['email' => $email, 'password' => $this->password], remember: true)) {
-            RateLimiter::hit($key, 600);
-            $this->error = 'That email and password do not match. If you are new, follow the WhatsApp steps below.';
+        $user = User::where($byEmail ? 'email' : 'phone', $id)->first();
+        if (! $user || ! $user->password || ! Hash::check($this->password, $user->password)) {
+            RateLimiter::hit($key, 900);
+            $this->error = 'That phone number or email and password do not match. If you are new, follow the WhatsApp steps below.';
             $this->password = '';
 
             return;
         }
         RateLimiter::clear($key);
+        Auth::login($user, remember: true);
         session()->regenerate();
-        if ($this->password === (string) config('ideas.default_password') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'must_change_password')) {
-            Auth::user()->forceFill(['must_change_password' => true])->save();
+        if ($this->password === (string) config('ideas.default_password') && Schema::hasColumn('users', 'must_change_password')) {
+            $user->forceFill(['must_change_password' => true])->save();
 
             return redirect()->route('password.change');
         }
 
-        return redirect()->intended(Auth::user()->is_admin ? route('admin.ranking') : route('home'));
+        return redirect()->intended($user->is_admin ? route('admin.ranking') : route('home'));
     }
 
     public function render()
