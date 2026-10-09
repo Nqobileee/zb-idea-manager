@@ -34,6 +34,48 @@
             </section>
         </div>
     @elseif ($tab === 'members')
+        @if ($created)
+            <section class="mb-5 rounded-2xl border border-brand bg-tint p-4" role="status">
+                <h2 class="font-display text-base font-bold">{{ $created['name'] }} was added ({{ $created['role'] }})</h2>
+                <p class="mt-1 text-sm">Give them these sign-in details. The password is shown <b>only now</b> and they must change it the first time they sign in.</p>
+                <dl class="mt-3 grid gap-1 text-sm sm:grid-cols-[110px_1fr]">
+                    <dt class="text-muted">Sign in at</dt><dd class="break-all font-mono">{{ $created['url'] }}</dd>
+                    <dt class="text-muted">Email or phone</dt><dd class="font-mono">{{ $created['login'] }}</dd>
+                    <dt class="text-muted">Password</dt><dd class="font-mono font-bold">{{ $created['password'] }}</dd>
+                </dl>
+                <button wire:click="dismissCreated" class="btn btn-sm mt-3">Done</button>
+            </section>
+        @endif
+        <details class="mb-5 rounded-2xl border border-line" @if ($errors->any()) open @endif>
+            <summary class="cursor-pointer px-4 py-3 font-display text-base font-bold">Add a member</summary>
+            <form wire:submit="addMember" class="grid gap-3 border-t border-line p-4 sm:grid-cols-2">
+                <div>
+                    <label class="lbl" for="nn">Full name</label>
+                    <input id="nn" wire:model="newName" class="inp" required>
+                    @error('newName')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="lbl" for="nr">Role</label>
+                    <select id="nr" wire:model="newRole" class="inp"><option value="general">General member</option><option value="admin">Executive admin</option></select>
+                </div>
+                <div>
+                    <label class="lbl" for="ne">Email <span class="font-normal text-muted">(optional if a phone is given)</span></label>
+                    <input id="ne" type="email" wire:model="newEmail" class="inp" autocomplete="off">
+                    @error('newEmail')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="lbl" for="np">WhatsApp / phone <span class="font-normal text-muted">(optional if an email is given)</span></label>
+                    <input id="np" wire:model="newPhone" class="inp" placeholder="077 123 4567" autocomplete="off">
+                    @error('newPhone')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="lbl" for="npw">Password <span class="font-normal text-muted">(leave empty to generate one)</span></label>
+                    <input id="npw" type="text" wire:model="newPassword" class="inp" autocomplete="off" placeholder="At least 8 characters">
+                    @error('newPassword')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div class="sm:col-span-2"><button class="btn btn-primary" wire:loading.attr="disabled">Add member</button></div>
+            </form>
+        </details>
         <input wire:model.live.debounce.250ms="search" type="search" class="inp mb-4 max-w-md" placeholder="Search by name, email or number" aria-label="Search members">
         <div class="overflow-x-auto rounded-2xl border border-line">
             <table class="w-full min-w-[720px] text-left text-sm">

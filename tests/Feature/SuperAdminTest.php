@@ -97,4 +97,44 @@ class SuperAdminTest extends TestCase
         $page->call('toggleAdmin', $m->id)->assertForbidden();
         $this->assertFalse($m->fresh()->is_admin);
     }
+
+    public function test_super_admin_adds_members_by_email_or_phone_with_a_one_time_password(): void
+    {
+        $this->withSession(['super_admin' => true]);
+
+        $page = Livewire::test(Portal::class)->set('tab', 'members')->set('newName', 'Rudo Moyo')->set('newEmail', 'Rudo@Example.com')->set('newPhone', '077 123 4567')->call('addMember');
+        $page->assertHasNoErrors()->assertSee('was added')->assertSee('only now');
+        $u = User::where('email', 'rudo@example.com')->firstOrFail();
+        $this->assertSame('263771234567', $u->phone);
+        $this->assertFalse($u->is_admin);
+        $this->assertTrue($u->must_change_password);
+        $shown = $page->get('created')['password'];
+        $this->assertSame(10, strlen($shown));
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check($shown, $u->password));
+        $page->call('dismissCreated')->assertSet('created', null);
+
+        // phone only, chosen password, as an Executive admin; they can sign in with the phone and it forces a change
+        Livewire::test(Portal::class)->set('newName', 'Tendai Phiri')->set('newPhone', '0772223344')->set('newRole', 'admin')->set('newPassword', 'chosen-pass-1')->call('addMember')->assertHasNoErrors();
+        $t = User::where('phone', '263772223344')->firstOrFail();
+        $this->assertNull($t->email);
+        $this->assertTrue($t->is_admin);
+        \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', '0772223344')->set('password', 'chosen-pass-1')->call('signIn')->assertRedirect();
+        $this->assertAuthenticatedAs($t);
+        $this->get('/')->assertRedirect(route('password.change'));
+    }
+
+    public function test_adding_a_member_refuses_duplicates_and_empty_contact_details(): void
+    {
+        $this->withSession(['super_admin' => true]);
+        $existing = User::whereNotNull('email')->first();
+        $existing->update(['phone' => '263779990001']);
+        $count = User::count();
+
+        Livewire::test(Portal::class)->set('newName', 'No Contact')->call('addMember')->assertHasErrors('newEmail');
+        Livewire::test(Portal::class)->set('newName', 'Dup Email')->set('newEmail', strtoupper($existing->email))->call('addMember')->assertHasErrors('newEmail');
+        Livewire::test(Portal::class)->set('newName', 'Dup Phone')->set('newPhone', '0779990001')->call('addMember')->assertHasErrors('newPhone');
+        Livewire::test(Portal::class)->set('newName', 'Bad Email')->set('newEmail', 'nope')->call('addMember')->assertHasErrors('newEmail');
+        Livewire::test(Portal::class)->set('newName', 'Short Pass')->set('newEmail', 'sp@example.com')->set('newPassword', 'short')->call('addMember')->assertHasErrors('newPassword');
+        $this->assertSame($count, User::count());
+    }
 }

@@ -19,6 +19,7 @@ If either is empty the portal is switched off (404). Five wrong tries from one a
 - **Challenges:** every challenge with who set it, the closing date and idea count.
 
 ## What you can do
+- **Add a member** (Members tab): name, role (General member or Executive admin), an email and/or a phone number, and a password. Leave the password empty to generate one. The sign-in details are shown once after adding, to pass on; the member must choose their own password the first time they sign in. Members can sign in with the phone number (any format) or the email.
 - **Make admin / Remove admin** on any member (asks to confirm).
 - **Remove** a member. Their ideas, comments and likes are deleted with them and it cannot be undone (asks to confirm).
 - **Remove** an idea.

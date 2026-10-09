@@ -6,7 +6,11 @@ use App\Models\Challenge;
 use App\Models\Comment;
 use App\Models\Idea;
 use App\Models\User;
+use App\Services\PhoneAccounts;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -25,6 +29,20 @@ class Portal extends Component
 
     public ?string $notice = null;
 
+    // the "add member" form
+    public string $newName = '';
+
+    public string $newEmail = '';
+
+    public string $newPhone = '';
+
+    public string $newRole = 'general';
+
+    public string $newPassword = '';
+
+    /** Shown once after a member is added, so the sign-in details can be passed on. Never stored. */
+    public ?array $created = null;
+
     /** Livewire update requests do not run the route middleware, so every action checks the session itself. */
     private function guard(): void
     {
@@ -42,6 +60,68 @@ class Portal extends Component
         $this->tab = in_array($tab, ['overview', 'members', 'ideas', 'challenges'], true) ? $tab : 'overview';
         $this->search = '';
         $this->notice = null;
+    }
+
+    public function addMember(): void
+    {
+        $this->guard();
+        $email = strtolower(trim($this->newEmail));
+        $phone = trim($this->newPhone) !== '' ? PhoneAccounts::normalize($this->newPhone) : '';
+        $this->validate([
+            'newName' => 'required|string|min:2|max:120',
+            'newRole' => 'required|in:general,admin',
+            'newPassword' => 'nullable|string|min:8|max:100',
+        ], [], ['newName' => 'name', 'newPassword' => 'password']);
+        if ($email === '' && $phone === '') {
+            $this->addError('newEmail', 'Add an email, a phone number, or both so they can sign in.');
+
+            return;
+        }
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->addError('newEmail', 'That does not look like a valid email address.');
+
+            return;
+        }
+        if ($phone !== '' && ! preg_match('/^\d{9,15}$/', $phone)) {
+            $this->addError('newPhone', 'That does not look like a valid phone number.');
+
+            return;
+        }
+        if ($email !== '' && User::where('email', $email)->exists()) {
+            $this->addError('newEmail', 'That email already belongs to a member.');
+
+            return;
+        }
+        if ($phone !== '' && User::where('phone', $phone)->exists()) {
+            $this->addError('newPhone', 'That phone number already belongs to a member.');
+
+            return;
+        }
+
+        $password = trim($this->newPassword) !== '' ? $this->newPassword : Str::password(10, symbols: false);
+        $phoneOnly = PhoneAccounts::phoneOnly();
+        if ($email === '' && ! $phoneOnly) {
+            $this->addError('newEmail', 'An email is needed until the latest database update has been run.');
+
+            return;
+        }
+        $user = User::create([
+            'name' => trim($this->newName), 'email' => $email !== '' ? $email : null, 'phone' => $phone !== '' ? $phone : null,
+            'password' => Hash::make($password), 'must_change_password' => true,
+            'is_admin' => $this->newRole === 'admin', 'member_type' => 'general',
+            'joined' => (string) now()->year, 'color' => '#049016',
+        ] + ($phoneOnly ? ['source' => 'admin', 'wa_welcomed_at' => now()] : []));
+
+        $this->created = ['name' => $user->name, 'login' => $email !== '' ? $email : PhoneAccounts::display($phone), 'password' => $password, 'role' => $user->role_label, 'url' => route('login')];
+        $this->notice = "{$user->name} was added.";
+        $this->reset('newName', 'newEmail', 'newPhone', 'newPassword');
+        $this->newRole = 'general';
+    }
+
+    public function dismissCreated(): void
+    {
+        $this->guard();
+        $this->created = null;
     }
 
     public function toggleAdmin(int $userId): void
