@@ -253,6 +253,25 @@ class WebAppTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_demo_accounts_are_created_from_the_environment_and_can_sign_in(): void
+    {
+        config(['ideas.demo' => [
+            'admin' => ['email' => 'demo.exec@example.test', 'password' => 'demo-exec-pass'],
+            'member' => ['email' => 'demo.mem@example.test', 'password' => 'demo-mem-pass'],
+        ]]);
+        $this->artisan('ideas:seed-demo')->assertSuccessful();
+        $this->artisan('ideas:seed-demo')->assertSuccessful(); // safe to repeat
+        $this->assertSame(1, User::where('email', 'demo.exec@example.test')->count());
+        $this->assertTrue(User::where('email', 'demo.exec@example.test')->first()->is_admin);
+        $this->assertFalse(User::where('email', 'demo.mem@example.test')->first()->is_admin);
+
+        Livewire::test(Login::class)->set('email', 'demo.mem@example.test')->set('password', 'demo-mem-pass')->call('signIn')->assertRedirect();
+        $this->assertAuthenticatedAs(User::where('email', 'demo.mem@example.test')->first());
+
+        config(['ideas.demo' => ['admin' => ['email' => '', 'password' => ''], 'member' => ['email' => '', 'password' => '']]]);
+        $this->artisan('ideas:seed-demo')->assertFailed();
+    }
+
     public function test_whatsapp_link_signs_in_once_and_expires(): void
     {
         $accounts = app(\App\Services\PhoneAccounts::class);

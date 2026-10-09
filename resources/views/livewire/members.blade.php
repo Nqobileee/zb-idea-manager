@@ -2,21 +2,6 @@
     <div class="eyebrow">Verified ZB staff</div>
     <h1 class="page-title">Members</h1>
     <p class="hint mt-1 mb-4">Everyone here is a verified ZB employee. Open a profile to see their ideas.</p>
-    @if ($requests->isNotEmpty())
-        <section class="mb-5 rounded-2xl border border-line bg-surface p-4" aria-label="Executive access requests">
-            <h2 class="font-display text-base font-bold">Executive access requests</h2>
-            <ul class="mt-2 divide-y divide-line">
-                @foreach ($requests as $req)
-                    <li class="flex flex-wrap items-center gap-3 py-2.5" wire:key="rq{{ $req->id }}">
-                        <x-avatar :user="$req" :size="36" />
-                        <span class="min-w-0 grow"><b class="block truncate text-sm">{{ $req->name }}</b><small class="block truncate text-xs text-muted">{{ $req->email }}</small></span>
-                        <button wire:click="declineExecutive({{ $req->id }})" class="btn btn-sm">Decline</button>
-                        <button wire:click="approveExecutive({{ $req->id }})" class="btn btn-sm btn-primary">Approve</button>
-                    </li>
-                @endforeach
-            </ul>
-        </section>
-    @endif
     <input wire:model.live.debounce.250ms="q" type="search" class="inp mb-5 max-w-md" placeholder="Search by name, role or department" aria-label="Search members">
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         @foreach ($users as $u)

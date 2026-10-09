@@ -523,25 +523,35 @@ class ZernioController extends Controller
             return $this->fail('This WhatsApp number is already linked to an account.');
         }
 
-        $executive = $wantsExecutive && in_array($email, config('ideas.executive_emails'), true);
-        $user = User::create([
-            'name' => $name, 'email' => $email, 'phone' => $phone, 'password' => Hash::make($password),
-            'is_admin' => $executive, 'member_type' => 'general',
-            'joined' => (string) now()->year, 'color' => '#049016',
-        ] + ($wantsExecutive && ! $executive && Schema::hasColumn('users', 'requested_role') ? ['requested_role' => 'executive'] : []));
-
-        if ($wantsExecutive && ! $executive) {
-            foreach (User::where('is_admin', true)->get() as $admin) {
-                Activity::create(['user_id' => $admin->id, 'type' => 'role_request', 'actor_id' => $user->id]);
+        if ($wantsExecutive) {
+            $secret = (string) config('ideas.executive_code');
+            $key = 'zernio-exec:'.$email.'|'.$phone;
+            if ($secret === '') {
+                return $this->fail('Executive admin registration is not open. You can register as a General Member instead.');
             }
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                return response()->json(['ok' => false, 'locked' => true, 'message' => 'Too many wrong codes. Please try again in 15 minutes, or register as a General Member.']);
+            }
+            $given = trim((string) $this->input($r, 'regExecCode', ''));
+            if ($given === '') {
+                return response()->json(['ok' => false, 'code_required' => true, 'message' => 'Executive admin needs the executive access code. Please send it.']);
+            }
+            if (! hash_equals($secret, $given)) {
+                RateLimiter::hit($key, 900);
 
-            return $this->reply('You are registered. Your request for Executive admin access has been sent to the administrators; until it is approved you have General Member access. Sign in at '.route('login').' with this email and password.', ['role' => 'general', 'executive_requested' => true, 'user_id' => $user->id, 'first_name' => $user->first_name]);
+                return response()->json(['ok' => false, 'code_required' => true, 'message' => 'That executive access code is not right.']);
+            }
+            RateLimiter::clear($key);
         }
 
-        return $this->reply($executive
-            ? 'You are registered as an Executive admin. Use this email and password to sign in at '.route('login').'.'
-            : 'You are registered as a General Member. Use this email and password to sign in at '.route('login').'.',
-            ['role' => $executive ? 'executive' : 'general', 'executive_requested' => false, 'user_id' => $user->id, 'first_name' => $user->first_name]);
+        $user = User::create([
+            'name' => $name, 'email' => $email, 'phone' => $phone, 'password' => Hash::make($password),
+            'is_admin' => $wantsExecutive, 'member_type' => 'general',
+            'joined' => (string) now()->year, 'color' => '#049016',
+        ]);
+
+        return $this->reply('You are registered as '.($wantsExecutive ? 'an Executive admin' : 'a General Member').'. Use this email and password to sign in at '.route('login').'.',
+            ['role' => $wantsExecutive ? 'executive' : 'general', 'user_id' => $user->id, 'first_name' => $user->first_name]);
     }
 
     // ---- pipeline and alerts -------------------------------------------------------------

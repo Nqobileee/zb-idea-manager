@@ -4,9 +4,15 @@ return [
     // Where uploaded images, documents and avatars are stored: 'public' (server disk) or 'supabase' (Supabase Storage).
     'upload_disk' => env('IDEAS_UPLOAD_DISK', 'public'),
 
-    // Emails that get Executive admin straight away when they register in the chatbot (comma separated in .env).
-    // Anyone else who asks is a General member until an administrator approves on the Members page.
-    'executive_emails' => array_values(array_filter(array_map(fn ($e) => strtolower(trim($e)), explode(',', (string) env('IDEAS_EXECUTIVE_EMAILS', ''))))),
+    // Secret code a person must give (with their email and password) to register as Executive admin in the chatbot.
+    // Empty disables Executive admin registration. Change it whenever you like; existing executives are unaffected.
+    'executive_code' => env('IDEAS_EXECUTIVE_CODE', ''),
+
+    // Demo sign-ins, created by `php artisan ideas:seed-demo`. Keep the values in the private environment only.
+    'demo' => [
+        'admin' => ['email' => env('IDEAS_DEMO_ADMIN_EMAIL'), 'password' => env('IDEAS_DEMO_ADMIN_PASSWORD')],
+        'member' => ['email' => env('IDEAS_DEMO_MEMBER_EMAIL'), 'password' => env('IDEAS_DEMO_MEMBER_PASSWORD')],
+    ],
 
     // Shared secret the Zernio chatbot sends in the X-Zernio-Secret header. Empty disables the /api/zernio endpoints.
     'zernio_secret' => env('ZERNIO_SECRET', ''),

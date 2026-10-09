@@ -41,7 +41,7 @@ Every reply is JSON: `{ "ok": true|false, "message": "<WhatsApp text>", ...extra
 | `/notifications/list` | | `enabled`; whether alerts are on and the 5 latest activity items with dates |
 | `/account/check` | `regEmail` | `exists`, and `first_name` when found. Nothing else is revealed. |
 | `/account/login` | `regEmail`, `regPassword`, `contact.phone` | `ok`, `full_name`, `role` (`executive` or `general`). Checks the hash, attaches the number if missing. 5 wrong tries lock that email+number for 15 minutes (`locked: true`). |
-| `/account/register` | `regName`, `regEmail`, `regPassword` (8+), `regRole`, `contact.phone` | `ok`, `role`. Same email and hashed password work on the web sign-in page. |
+| `/account/register` | `regName`, `regEmail`, `regPassword` (8+), `regRole`, `regExecCode` (Executive admin only), `contact.phone` | `ok`, `role`. Same email and hashed password work on the web sign-in page. |
 | `/reports` | `reportChoice` | **Executives.** `Programme summary` (default), `Top 10 by likes`, `Awaiting approval`, `Ideas by stage`, `By challenge` |
 
 ## References
@@ -65,8 +65,8 @@ Ideas are resolved with the same visibility rules as the web app: executives see
 ## Sign-in and registration
 
 - **Email and password.** The password made in the chatbot is stored hashed and is the same one the web sign-in page checks.
-- **Executive admin is a request.** `/account/register` with `regRole` = `Executive admin` creates a **General** account, stores `requested_role = executive` and adds an alert for every existing administrator. Administrators approve or decline on the **Members** page. The exception is an email listed in `IDEAS_EXECUTIVE_EMAILS` (comma separated), which is granted straight away.
+- **Executive admin needs a code.** `/account/register` with `regRole` = `Executive admin` also needs `regExecCode`, which must equal `IDEAS_EXECUTIVE_CODE` in the server environment. With no code, or a wrong one, the reply is `ok: false` and `code_required: true` so the bot can ask again. Five wrong tries lock that email and number for 15 minutes (`locked: true`). If `IDEAS_EXECUTIVE_CODE` is empty, Executive admin registration is closed and people can only register as General.
 - **Passwords.** Request bodies are never logged, plain passwords are never stored, and `regPassword` is excluded from error reports.
 - **Identity.** Accounts are found by the WhatsApp number Meta verified. An email typed in chat can never take over an existing account: `/link` and `/account/register` refuse an email that already exists.
 - **Not built.** There is no "forgot password" page yet, so wrong-password replies link to the web sign-in page.
-- **Migrations to run:** `wa_greeted_on` and `requested_role` on users (`php artisan migrate --force`). Until they run, the greeting is empty and Executive requests are not recorded.
+- **Migrations to run:** `wa_greeted_on` on users (`php artisan migrate --force`). Until it runs, the greeting is empty.

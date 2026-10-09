@@ -258,7 +258,7 @@ class ZernioTest extends TestCase
     public function test_register_a_general_member_who_can_then_sign_in_on_the_web(): void
     {
         $body = ['regName' => 'Pelagia Dube', 'regEmail' => 'pelagia@example.com', 'regPassword' => 'longenough1', 'regRole' => 'General Member', 'contact' => ['phone' => '263778000001']];
-        $this->call_('/account/register', $body)->assertJson(['ok' => true, 'role' => 'general', 'executive_requested' => false]);
+        $this->call_('/account/register', $body)->assertJson(['ok' => true, 'role' => 'general']);
         $u = User::where('email', 'pelagia@example.com')->firstOrFail();
         $this->assertSame('General', $u->role_label);
         $this->assertSame('263778000001', $u->phone);
@@ -278,26 +278,33 @@ class ZernioTest extends TestCase
         $this->assertNull(User::where('email', 'test.person@example.com')->first());
     }
 
-    public function test_executive_admin_is_a_request_not_a_grant_unless_the_email_is_allowlisted(): void
+    public function test_executive_admin_registration_needs_the_secret_code(): void
     {
-        $exec = User::where('is_admin', true)->firstOrFail();
         $req = ['regName' => 'Wants Power', 'regEmail' => 'wants.power@example.com', 'regPassword' => 'longenough1', 'regRole' => 'Executive admin', 'contact' => ['phone' => '263778000003']];
-        $this->call_('/account/register', $req)->assertJson(['ok' => true, 'role' => 'general', 'executive_requested' => true]);
+
+        config(['ideas.executive_code' => '']);
+        $this->call_('/account/register', $req + ['regExecCode' => 'anything'])->assertJson(['ok' => false]);
+        $this->assertNull(User::where('email', 'wants.power@example.com')->first());
+
+        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
+        $this->call_('/account/register', $req)->assertJson(['ok' => false, 'code_required' => true]);
+        $this->call_('/account/register', $req + ['regExecCode' => 'wrong'])->assertJson(['ok' => false, 'code_required' => true]);
+        $this->assertNull(User::where('email', 'wants.power@example.com')->first());
+
+        $this->call_('/account/register', $req + ['regExecCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => true, 'role' => 'executive']);
         $u = User::where('email', 'wants.power@example.com')->firstOrFail();
-        $this->assertFalse($u->is_admin);
-        $this->assertSame('executive', $u->requested_role);
-        $this->assertDatabaseHas('activities', ['user_id' => $exec->id, 'type' => 'role_request', 'actor_id' => $u->id]);
+        $this->assertTrue($u->is_admin);
+        $this->assertSame('Executive admin', $u->role_label);
+    }
 
-        // admins approve on the Members page; other people cannot
-        $this->actingAs(User::where('is_admin', false)->where('id', '!=', $u->id)->first());
-        \Livewire\Livewire::test(\App\Livewire\Members::class)->call('approveExecutive', $u->id)->assertForbidden();
-        $this->actingAs($exec);
-        \Livewire\Livewire::test(\App\Livewire\Members::class)->assertSee('Executive access requests')->call('approveExecutive', $u->id);
-        $this->assertTrue($u->fresh()->is_admin);
-        $this->assertNull($u->fresh()->requested_role);
-
-        config(['ideas.executive_emails' => ['boss@example.com']]);
-        $this->call_('/account/register', ['regEmail' => 'boss@example.com', 'regName' => 'The Boss', 'contact' => ['phone' => '263778000004']] + $req)->assertJson(['ok' => true, 'role' => 'executive']);
-        $this->assertTrue(User::where('email', 'boss@example.com')->first()->is_admin);
+    public function test_wrong_executive_codes_lock_out_after_five_tries(): void
+    {
+        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
+        $req = ['regName' => 'Guesser', 'regEmail' => 'guesser@example.com', 'regPassword' => 'longenough1', 'regRole' => 'Executive admin', 'contact' => ['phone' => '263778000005']];
+        foreach (range(1, 5) as $i) {
+            $this->call_('/account/register', $req + ['regExecCode' => 'guess'.$i])->assertJson(['ok' => false]);
+        }
+        $this->call_('/account/register', $req + ['regExecCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => false, 'locked' => true]);
+        $this->assertNull(User::where('email', 'guesser@example.com')->first());
     }
 }
