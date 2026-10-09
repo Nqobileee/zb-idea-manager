@@ -159,6 +159,7 @@ class ZernioController extends Controller
             ]);
         }
 
+        $this->recordLink($phone, $user);
         [$greeting, $greeted] = $this->greeting($user);
 
         return $this->reply("Linked, {$user->first_name}.", ['user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin, 'greeting' => $greeting, 'greeted_today' => $greeted]);
@@ -252,19 +253,34 @@ class ZernioController extends Controller
         $head = "{$c->title}\nSet by ".($c->owner?->name ?? 'an executive').' · '.($c->deadline ? 'closes '.$c->deadline->format('j M Y') : 'no deadline')."\n{$c->ideas_count} ".Str::plural('idea', $c->ideas_count);
         $link = 'View on the web: '.route('challenges.show', $c);
 
-        return $this->reply($this->withLink($head."\n\nBrief\n", (string) $c->brief, $link), ['challenge_id' => $c->id, 'is_executive' => (bool) $u->is_admin]);
+        [$text, $more] = $this->withLink($head."\n\nBrief\n", (string) $c->brief, $link);
+
+        return $this->reply($text, ['challenge_id' => $c->id, 'is_executive' => (bool) $u->is_admin] + ($more ? ['message_more' => $more] : []));
     }
 
-    /** Head + body + link as one message under WhatsApp's limit. The body is trimmed so the link is always the last line. */
-    private function withLink(string $head, string $body, string $link): string
+    /**
+     * Head + body + link, split over two messages when the text is longer than one WhatsApp message.
+     * Returns [message, more|null]. When there is no overflow the link is the last line of `message`.
+     * With overflow, `message` ends "(continued)" and the rest of the text plus the link is in `message_more`.
+     */
+    private function withLink(string $head, string $body, string $link): array
     {
-        $room = 4000 - mb_strlen($head) - mb_strlen($link) - 2;
         $body = trim($body);
-        if (mb_strlen($body) > $room) {
-            $body = rtrim(mb_substr($body, 0, max(0, $room - 40))).'… (the rest is on the web)';
+        $limit = 4000;
+        $room = $limit - mb_strlen($head) - mb_strlen($link) - 2;
+        if (mb_strlen($body) <= $room) {
+            return [$head.$body."\n\n".$link, null];
+        }
+        $first = mb_substr($body, 0, max(0, $limit - mb_strlen($head) - 20));
+        $cut = max(mb_strrpos($first, "\n") ?: 0, mb_strrpos($first, ' ') ?: 0) ?: mb_strlen($first); // break between words
+        $first = rtrim(mb_substr($body, 0, $cut));
+        $rest = ltrim(mb_substr($body, $cut));
+        $moreRoom = $limit - mb_strlen($link) - 2;
+        if (mb_strlen($rest) > $moreRoom) {
+            $rest = rtrim(mb_substr($rest, 0, max(0, $moreRoom - 40))).'… (the rest is on the web)';
         }
 
-        return $head.$body."\n\n".$link;
+        return [$head.$first."\n\n(continued)", $rest."\n\n".$link];
     }
 
     public function challengeIdeas(Request $r): JsonResponse
@@ -425,7 +441,9 @@ class ZernioController extends Controller
             $body = (string) $idea->body;
         }
 
-        return $this->reply($this->withLink($head, $body, 'View on the web: '.route('ideas.show', $idea)), ['idea_id' => $idea->id, 'approved' => (bool) $idea->approved, 'is_executive' => (bool) $u->is_admin]);
+        [$text, $more] = $this->withLink($head, $body, 'View on the web: '.route('ideas.show', $idea));
+
+        return $this->reply($text, ['idea_id' => $idea->id, 'approved' => (bool) $idea->approved, 'is_executive' => (bool) $u->is_admin] + ($more ? ['message_more' => $more] : []));
     }
 
     public function like(Request $r): JsonResponse
@@ -472,6 +490,23 @@ class ZernioController extends Controller
         return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
     }
 
+    /** Remember that this number has signed in to this account (a successful sign-in, registration or /link only). */
+    private function recordLink(?string $phone, User $u): void
+    {
+        if ($phone && Schema::hasTable('whatsapp_account_links')) {
+            \DB::table('whatsapp_account_links')->upsert([['phone' => $phone, 'user_id' => $u->id, 'last_used_at' => now()]], ['phone', 'user_id'], ['last_used_at']);
+        }
+    }
+
+    /** "p•••a@gmail.com": first letter, last letter of the name, and the domain. */
+    private function maskEmail(string $email): string
+    {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        $mask = mb_strlen($name) <= 2 ? mb_substr($name, 0, 1).'•••' : mb_substr($name, 0, 1).'•••'.mb_substr($name, -1);
+
+        return $mask.'@'.$domain;
+    }
+
     /** After a correct password, this WhatsApp number belongs to that account: it is taken off any other account first. */
     private function attachPhone(User $u, ?string $phone): void
     {
@@ -479,6 +514,7 @@ class ZernioController extends Controller
             User::where('phone', $phone)->where('id', '!=', $u->id)->update(['phone' => null]);
             $u->update(['phone' => $phone]);
         }
+        $this->recordLink($phone, $u);
     }
 
     /** The person types the switch code in WhatsApp: unlink this number so sign-in starts again from the email question. */
@@ -501,9 +537,66 @@ class ZernioController extends Controller
         }
         RateLimiter::clear($key);
         $was = User::where('phone', $phone)->first();
+        if ($was) {
+            $this->recordLink($phone, $was); // the account being left must be on the list
+        }
         User::where('phone', $phone)->update(['phone' => null]);
 
-        return $this->reply('Switched'.($was ? " (you were signed in as {$was->first_name})" : '').'. Let us sign in again. What is your email address?', ['restart' => true, 'was_signed_in' => (bool) $was]);
+        $ids = $this->linkedAccountIds($phone);
+        if ($ids === []) {
+            return $this->reply('Switched'.($was ? " (you were signed in as {$was->first_name})" : '').'. Let us sign in again. What is your email address?', ['restart' => true, 'was_signed_in' => (bool) $was, 'accounts' => 0]);
+        }
+        Cache::put('zernio:phone-'.$phone.':accounts', $ids, now()->addMinutes(30)); // per number: nobody is signed in at this point
+        $users = User::whereIn('id', $ids)->get()->keyBy('id');
+        $lines = [];
+        foreach ($ids as $n => $id) {
+            $a = $users[$id];
+            $lines[] = ($n + 1).". {$a->name} · ".($a->is_admin ? 'Executive admin' : 'General Member').' · '.$this->maskEmail($a->email);
+        }
+        $lines[] = (count($ids) + 1).'. Create a new account';
+
+        return $this->reply("Switched. Which account would you like to use?\n".implode("\n", $lines)."\nReply with a number, or send an email address.", ['restart' => true, 'was_signed_in' => (bool) $was, 'accounts' => count($ids)]);
+    }
+
+    /** Accounts this number has signed in to, newest first. */
+    private function linkedAccountIds(string $phone): array
+    {
+        if (! Schema::hasTable('whatsapp_account_links')) {
+            return [];
+        }
+
+        return \DB::table('whatsapp_account_links')->join('users', 'users.id', '=', 'whatsapp_account_links.user_id')
+            ->where('whatsapp_account_links.phone', $phone)->orderByDesc('whatsapp_account_links.last_used_at')->orderByDesc('whatsapp_account_links.id')
+            ->pluck('whatsapp_account_links.user_id')->map(fn ($i) => (int) $i)->all();
+    }
+
+    public function accountSwitchPick(Request $r): JsonResponse
+    {
+        $phone = $this->phone($r);
+        $pick = fn (string $message, array $extra = [], bool $ok = true) => response()->json(['ok' => $ok, 'message' => $message] + $extra);
+        $bad = fn () => $pick('Please pick a number from the list.', [], false);
+        if (! $phone) {
+            return $bad();
+        }
+        $ref = trim((string) $this->input($r, 'accountRef', ''));
+        if (! preg_match('/^accounts:(\d+)$/', $ref, $m)) {
+            return $bad();
+        }
+        $n = (int) $m[1];
+        $ids = Cache::get('zernio:phone-'.$phone.':accounts');
+        if (! is_array($ids) || $n < 1 || $n > count($ids) + 1) {
+            return $bad();
+        }
+        if ($n === count($ids) + 1) {
+            return $pick("Let's create a new account.", ['action' => 'new']);
+        }
+        $user = in_array($ids[$n - 1], $this->linkedAccountIds($phone), true) ? User::find($ids[$n - 1]) : null;
+        if (! $user) {
+            return $bad();
+        }
+
+        // Nothing is signed in here: the bot sends the password to /account/login next.
+        return $pick('Please enter the password for '.$user->name.' ('.($user->is_admin ? 'Executive admin' : 'General Member').').', ['action' => 'login', 'email' => $user->email]);
     }
 
     public function accountCheck(Request $r): JsonResponse
@@ -596,6 +689,8 @@ class ZernioController extends Controller
             'is_admin' => $wantsExecutive, 'member_type' => 'general',
             'joined' => (string) now()->year, 'color' => '#049016',
         ]);
+
+        $this->recordLink($phone, $user);
 
         return $this->reply('You are registered as '.($wantsExecutive ? 'an Executive admin' : 'a General Member').'. Use this email and password to sign in at '.route('login').'.',
             ['role' => $wantsExecutive ? 'executive' : 'general', 'user_id' => $user->id, 'first_name' => $user->first_name] + $this->greetingFields($user));

@@ -172,8 +172,15 @@ class ZernioTest extends TestCase
         $this->assertStringContainsString('Summary', $msg);
         $this->assertStringContainsString('Details', $msg);
         $this->assertStringContainsString('Public', $msg);
-        $this->assertLessThan(4000, mb_strlen($msg));
-        $this->assertStringEndsWith('View on the web: '.route('ideas.show', $idea), $msg);
+        $this->assertLessThanOrEqual(4000, mb_strlen($msg));
+        $this->assertStringEndsWith('(continued)', $msg);
+        $more = $this->call_('/ideas/detail', $this->as_($u, ['ideaRef' => 'id:'.$idea->id]))->json('message_more');
+        $this->assertLessThanOrEqual(4000, mb_strlen($more));
+        $this->assertStringEndsWith('View on the web: '.route('ideas.show', $idea), $more);
+
+        $short = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $u->id, 'title' => 'Short one', 'summary' => 'Short', 'body' => 'A bit more detail.', 'status' => 'Idea', 'visibility' => 'public']);
+        $res = $this->call_('/ideas/detail', $this->as_($u, ['ideaRef' => 'id:'.$short->id]))->assertJsonMissingPath('message_more')->json('message');
+        $this->assertStringEndsWith('View on the web: '.route('ideas.show', $short), $res);
 
         $ch = Challenge::first();
         $msg = $this->call_('/challenges/detail', $this->as_($u, ['chRef' => 'id:'.$ch->id]))->assertJson(['ok' => true, 'challenge_id' => $ch->id])->json('message');
@@ -372,5 +379,51 @@ class ZernioTest extends TestCase
 
         $reg = $this->call_('/account/register', ['regName' => 'Menu Person', 'regEmail' => 'menu.person@example.com', 'regPassword' => 'longenough1', 'regRole' => 'General Member', 'contact' => ['phone' => '263779500002']])->assertJson(['ok' => true])->json();
         $this->assertNotSame('', $reg['menu_text']);
+    }
+
+    public function test_switch_lists_this_numbers_linked_accounts_with_masked_emails_and_the_picker_returns_the_choice(): void
+    {
+        config(['ideas.switch_code' => 'SWITCH-7777']);
+        $phone = '263779600001';
+        $a = User::where('is_admin', false)->firstOrFail();
+        $b = User::where('is_admin', true)->firstOrFail();
+        $stranger = User::where('is_admin', false)->where('id', '!=', $a->id)->firstOrFail();
+        $a->update(['password' => \Illuminate\Support\Facades\Hash::make('pass-a-12345')]);
+        $b->update(['password' => \Illuminate\Support\Facades\Hash::make('pass-b-12345')]);
+        $c = ['contact' => ['phone' => $phone]];
+
+        // before anything is linked the switch keeps the old reply
+        $this->call_('/account/switch', $c + ['switchCode' => 'SWITCH-7777'])->assertJson(['ok' => true, 'restart' => true, 'accounts' => 0])->assertSee('email address');
+
+        $this->call_('/account/login', $c + ['regEmail' => $a->email, 'regPassword' => 'pass-a-12345'])->assertJson(['ok' => true]);
+        $this->call_('/account/login', $c + ['regEmail' => $b->email, 'regPassword' => 'wrong'])->assertJson(['ok' => false]);
+        $this->assertDatabaseMissing('whatsapp_account_links', ['phone' => $phone, 'user_id' => $b->id]); // failed sign-in adds nothing
+        $this->travel(5)->minutes();
+        $this->call_('/account/login', $c + ['regEmail' => $b->email, 'regPassword' => 'pass-b-12345'])->assertJson(['ok' => true]);
+        \Illuminate\Support\Facades\DB::table('whatsapp_account_links')->insert(['phone' => '263779600999', 'user_id' => $stranger->id, 'last_used_at' => now()]);
+
+        $msg = $this->call_('/account/switch', $c + ['switchCode' => 'SWITCH-7777'])->assertJson(['ok' => true, 'accounts' => 2])->json('message');
+        $this->assertStringContainsString("1. {$b->name} · Executive admin · ", $msg);
+        $this->assertStringContainsString("2. {$a->name} · General Member · ", $msg);
+        $this->assertStringContainsString('3. Create a new account', $msg);
+        $this->assertStringContainsString('Reply with a number, or send an email address.', $msg);
+        $this->assertStringNotContainsString($a->email, $msg);
+        $this->assertStringNotContainsString($stranger->name, $msg);
+        $this->assertMatchesRegularExpression('/[a-z0-9]•••[a-z0-9]@/i', $msg);
+        $this->assertNull($b->fresh()->phone);
+
+        // the picker returns the email but signs nothing in
+        $this->call_('/account/switch/pick', $c + ['accountRef' => 'accounts:2'])->assertOk()->assertJson(['ok' => true, 'action' => 'login', 'email' => $a->email]);
+        $this->assertNull($a->fresh()->phone);
+        $this->call_('/account/switch/pick', $c + ['accountRef' => 'accounts:3'])->assertJson(['ok' => true, 'action' => 'new']);
+        $this->call_('/account/switch/pick', $c + ['accountRef' => 'accounts:9'])->assertOk()->assertJson(['ok' => false]);
+        $this->call_('/account/switch/pick', $c + ['accountRef' => 'top:1'])->assertJson(['ok' => false]);
+        $this->call_('/account/switch/pick', ['contact' => ['phone' => '263779600777'], 'accountRef' => 'accounts:1'])->assertJson(['ok' => false]); // another number has no list
+
+        // a wrong password after picking changes nothing; the right one moves the number
+        $this->call_('/account/login', $c + ['regEmail' => $a->email, 'regPassword' => 'nope'])->assertJson(['ok' => false]);
+        $this->assertNull($a->fresh()->phone);
+        $this->call_('/account/login', $c + ['regEmail' => $a->email, 'regPassword' => 'pass-a-12345'])->assertJson(['ok' => true]);
+        $this->assertSame($phone, $a->fresh()->phone);
     }
 }

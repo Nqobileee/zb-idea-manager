@@ -128,3 +128,35 @@ A person who has several accounts (for example a General member and an Executive
 `/account/login` and `/account/register` now return the same `greeting` and `greeted_today` as `/link`, plus **`menu_text`**: the greeting on the first call of the day, otherwise "What would you like to do?". It is never empty.
 
 If the node after sign-in (for example `im_regdone`) fails with "Message text, attachment, or template is required", its text field points at a variable that is empty on this path. Point it at the login or register reply's `menu_text` (or `message`) instead of a variable that is only set by `/link`.
+
+## Update v6: account picker on switch, and long text in two messages
+
+### Accounts this number has used
+Table `whatsapp_account_links` (`phone`, `user_id`, `last_used_at`, unique per phone and account). A row is added or refreshed on every **successful** `/account/login`, `/account/register` and `/link`, and for the account being left when the switch code is used. A failed sign-in never adds a row. Run `php artisan migrate --force` to create it; until then switching keeps the old "What is your email address?" reply.
+
+### `POST /account/switch` (after a correct code)
+Signs the number out, then lists the accounts that number has used, newest first:
+
+```
+Switched. Which account would you like to use?
+1. Pelagia M · Executive admin · p•••a@gmail.com
+2. Pelagia M · General Member · n•••i@gmail.com
+3. Create a new account
+Reply with a number, or send an email address.
+```
+
+Emails are masked (first letter, last letter, domain). The order is cached for 30 minutes under that number and referenced as `accounts:N`. The reply also has `restart: true` and `accounts` (how many). With no linked accounts the reply is the old one: "…What is your email address?" with `accounts: 0`.
+
+### `POST /account/switch/pick`
+Reads `accountRef` (`accounts:N`) and `contact.phone`. Always HTTP 200, `message` never empty:
+
+| Case | Reply |
+|---|---|
+| An existing account | `ok: true`, `action: "login"`, `email` (full), `message`: "Please enter the password for Pelagia M (Executive admin)." |
+| The last number ("Create a new account") | `ok: true`, `action: "new"`, `message`: "Let's create a new account." |
+| Bad number, wrong kind of reference, expired list, or another number's list | `ok: false`, `message`: "Please pick a number from the list." |
+
+It only returns accounts linked to that number and **never signs anyone in**. The bot then sends the password to `/account/login`, which moves the number only when the password is right.
+
+### Long idea and challenge text: `message_more`
+`/ideas/detail` and `/challenges/detail`: when the text fits in one WhatsApp message, `message` ends with `View on the web: <link>` as before. When it does not, `message` is the first part ending "(continued)" and **`message_more`** holds the rest followed by the link. Send `message` first, then `message_more` if it is present. `message_more` is itself capped at about 4,000 characters; beyond that it ends "… (the rest is on the web)".
