@@ -88,12 +88,33 @@
                             <td class="px-4 py-2.5 text-xs text-muted">{{ $m->phone ?: 'Not linked' }}</td>
                             <td class="px-4 py-2.5 tabular-nums">{{ $m->ideas_count }}</td>
                             <td class="px-4 py-2.5">
-                                <div class="flex justify-end gap-2">
+                                <div class="flex flex-wrap justify-end gap-2">
+                                    <button wire:click="editContact({{ $m->id }})" class="btn btn-sm">Edit contact</button>
                                     <button wire:click="toggleAdmin({{ $m->id }})" wire:confirm="{{ $m->is_admin ? 'Remove admin rights from '.$m->name.'?' : 'Make '.$m->name.' an Executive admin?' }}" class="btn btn-sm">{{ $m->is_admin ? 'Remove admin' : 'Make admin' }}</button>
                                     <button wire:click="removeMember({{ $m->id }})" wire:confirm="Remove {{ $m->name }}? Their ideas, comments and likes are deleted too. This cannot be undone." class="btn btn-sm !text-heart">Remove</button>
                                 </div>
                             </td>
                         </tr>
+                        @if ($editingId === $m->id)
+                            <tr wire:key="me{{ $m->id }}" class="bg-surface">
+                                <td colspan="5" class="px-4 py-3">
+                                    <form wire:submit="saveContact" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                        <div>
+                                            <label class="lbl" for="ee{{ $m->id }}">Email</label>
+                                            <input id="ee{{ $m->id }}" type="email" wire:model="editEmail" class="inp" autocomplete="off" placeholder="none">
+                                            @error('editEmail')<p class="err">{{ $message }}</p>@enderror
+                                        </div>
+                                        <div>
+                                            <label class="lbl" for="ep{{ $m->id }}">WhatsApp / phone</label>
+                                            <input id="ep{{ $m->id }}" wire:model="editPhone" class="inp" autocomplete="off" placeholder="077 123 4567">
+                                            @error('editPhone')<p class="err">{{ $message }}</p>@enderror
+                                        </div>
+                                        <div class="flex gap-2"><button class="btn btn-primary btn-sm" wire:loading.attr="disabled">Save</button><button type="button" wire:click="cancelEdit" class="btn btn-sm">Cancel</button></div>
+                                    </form>
+                                    <p class="hint mt-2">Link or change the email and phone number for {{ $m->name }}. Clear a field to remove it, but keep at least one.</p>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr><td colspan="5" class="px-4 py-8 text-center text-muted">No members found.</td></tr>
                     @endforelse

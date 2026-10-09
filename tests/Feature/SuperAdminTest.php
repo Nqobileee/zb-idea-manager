@@ -137,4 +137,42 @@ class SuperAdminTest extends TestCase
         Livewire::test(Portal::class)->set('newName', 'Short Pass')->set('newEmail', 'sp@example.com')->set('newPassword', 'short')->call('addMember')->assertHasErrors('newPassword');
         $this->assertSame($count, User::count());
     }
+
+    public function test_super_admin_links_and_changes_a_members_phone_and_email(): void
+    {
+        $this->withSession(['super_admin' => true]);
+        $a = User::where('is_admin', false)->first();
+        $b = User::where('is_admin', false)->where('id', '!=', $a->id)->first();
+        $b->update(['phone' => '263778880001']);
+
+        $page = Livewire::test(Portal::class)->set('tab', 'members')->call('editContact', $a->id)->assertSet('editEmail', $a->email);
+        $page->set('editEmail', 'NEW.Mail@Example.com')->set('editPhone', '077 888 0002')->call('saveContact')->assertHasNoErrors()->assertSee('contact details were saved')->assertSet('editingId', null);
+        $this->assertSame('new.mail@example.com', $a->fresh()->email);
+        $this->assertSame('263778880002', $a->fresh()->phone);
+
+        // the number can now be used to sign in on the web
+        $a->update(['password' => \Illuminate\Support\Facades\Hash::make('link-pass-123'), 'must_change_password' => false]);
+        \Livewire\Livewire::test(\App\Livewire\Auth\Login::class)->set('email', '0778880002')->set('password', 'link-pass-123')->call('signIn')->assertRedirect();
+        $this->assertAuthenticatedAs($a);
+    }
+
+    public function test_changing_contact_details_refuses_duplicates_empty_and_invalid_values(): void
+    {
+        $this->withSession(['super_admin' => true]);
+        $a = User::where('is_admin', false)->first();
+        $b = User::where('is_admin', false)->where('id', '!=', $a->id)->first();
+        $b->update(['phone' => '263778880003']);
+        $before = [$a->email, $a->phone];
+
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editPhone', '0778880003')->call('saveContact')->assertHasErrors('editPhone');
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editEmail', strtoupper($b->email))->call('saveContact')->assertHasErrors('editEmail');
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editEmail', 'bad')->call('saveContact')->assertHasErrors('editEmail');
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editEmail', '')->set('editPhone', '')->call('saveContact')->assertHasErrors('editEmail');
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editPhone', 'abc')->call('saveContact')->assertHasErrors('editPhone');
+        $this->assertSame($before, [$a->fresh()->email, $a->fresh()->phone]);
+
+        // keeping their own details is fine, and a phone can be cleared while an email stays
+        Livewire::test(Portal::class)->call('editContact', $a->id)->set('editPhone', '')->call('saveContact')->assertHasNoErrors();
+        $this->assertNull($a->fresh()->phone);
+    }
 }

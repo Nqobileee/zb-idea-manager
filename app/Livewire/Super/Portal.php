@@ -82,7 +82,7 @@ class Portal extends Component
 
             return;
         }
-        if ($phone !== '' && ! preg_match('/^\d{9,15}$/', $phone)) {
+        if ((trim($this->newPhone) !== '' && $phone === '') || ($phone !== '' && ! preg_match('/^\d{9,15}$/', $phone))) {
             $this->addError('newPhone', 'That does not look like a valid phone number.');
 
             return;
@@ -116,6 +116,71 @@ class Portal extends Component
         $this->notice = "{$user->name} was added.";
         $this->reset('newName', 'newEmail', 'newPhone', 'newPassword');
         $this->newRole = 'general';
+    }
+
+    // linking a phone number or email to an existing member
+    public ?int $editingId = null;
+
+    public string $editEmail = '';
+
+    public string $editPhone = '';
+
+    public function editContact(int $userId): void
+    {
+        $this->guard();
+        $u = User::findOrFail($userId);
+        $this->resetErrorBag();
+        $this->editingId = $u->id;
+        $this->editEmail = (string) $u->email;
+        $this->editPhone = (string) $u->phone;
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->guard();
+        $this->reset('editingId', 'editEmail', 'editPhone');
+        $this->resetErrorBag();
+    }
+
+    public function saveContact(): void
+    {
+        $this->guard();
+        $u = User::findOrFail((int) $this->editingId);
+        $email = strtolower(trim($this->editEmail));
+        $phone = trim($this->editPhone) !== '' ? PhoneAccounts::normalize($this->editPhone) : '';
+        if ($email === '' && $phone === '') {
+            $this->addError('editEmail', 'Keep at least an email or a phone number so they can sign in.');
+
+            return;
+        }
+        if ($email === '' && ! PhoneAccounts::phoneOnly()) {
+            $this->addError('editEmail', 'An email is needed until the latest database update has been run.');
+
+            return;
+        }
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->addError('editEmail', 'That does not look like a valid email address.');
+
+            return;
+        }
+        if ((trim($this->editPhone) !== '' && $phone === '') || ($phone !== '' && ! preg_match('/^\d{9,15}$/', $phone))) {
+            $this->addError('editPhone', 'That does not look like a valid phone number.');
+
+            return;
+        }
+        if ($email !== '' && User::where('email', $email)->where('id', '!=', $u->id)->exists()) {
+            $this->addError('editEmail', 'That email already belongs to another member.');
+
+            return;
+        }
+        if ($phone !== '' && User::where('phone', $phone)->where('id', '!=', $u->id)->exists()) {
+            $this->addError('editPhone', 'That phone number already belongs to another member.');
+
+            return;
+        }
+        $u->update(['email' => $email !== '' ? $email : null, 'phone' => $phone !== '' ? $phone : null]);
+        $this->notice = "{$u->name}'s contact details were saved.";
+        $this->cancelEdit();
     }
 
     public function dismissCreated(): void
