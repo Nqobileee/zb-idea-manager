@@ -194,15 +194,8 @@ Reads `leEmail` and `contact.phone`. Always 200 with a non-empty message.
 | Used by another account | `ok: false`, "That email is already linked to another account…". The owner is never named. |
 | Invalid | `ok: false`, "That does not look like a valid email address." |
 
-### `/account/code` (executive access code)
-Reads `switchCode` (the text typed) and `contact.phone`. Compared with `IDEAS_EXECUTIVE_CODE`, trimmed and not case sensitive. Empty setting = upgrades are off.
-| Case | Reply |
-|---|---|
-| Correct | Member created first if the number is unknown; role set to Executive admin; `ok: true`, `elevated: true`, "Welcome, <name>. You now have Executive admin access…" |
-| Already an executive | `ok: true`, `elevated: true`, "You already have Executive admin access." |
-| Anything else | `{ "ok": false }`, no message. The bot ignores it. |
-| Locked | `ok: false`, `locked: true`, "Too many wrong codes…" |
-Only text that looks like a code attempt (starts with `ZB-`, or has the code's length and hyphen shape) counts as a wrong try, so words like "Pipeline" never lock anyone out. Five wrong attempts lock the number for 15 minutes. Every upgrade is written to the application log (user, phone, time).
+### `/account/code` (retired)
+The bot no longer calls it. It always replies `{ "ok": false, "elevated": false, "locked": false }`, locks nobody and changes no role. A member's role comes **only from the database**: set it in the super admin portal (Make admin / Remove admin) or directly in the `users` table. Nothing typed in WhatsApp, including the executive access code, can make someone an executive, and no number is ever locked out for what it says.
 
 ### Retired for the bot
 `/account/check`, `/account/login`, `/account/register`, `/account/switch` and `/account/switch/pick` still work but the bot no longer calls them.
@@ -212,3 +205,10 @@ Only text that looks like a code attempt (starts with `ZB-`, or has the code's l
 
 ### Not built
 The `smilefactory.tech` account-creation job: there is no Smile Factory API or credentials in this repository.
+
+## Update v8: automatic recognition by phone number
+- **No password, code or PIN on WhatsApp.** `/link` finds the member by the WhatsApp number alone (Meta has verified it) and returns their details. An unknown number is created as a General member, `is_new: true`.
+- **Role:** `is_executive` in the `/link` reply is the database role and nothing else. Change a role in the database or the super admin portal and the next message shows the other menu.
+- **Executive-only endpoints** (`/challenges/ideas`, `/ideas/top5`, `/ideas/approve`, `/reports`) check the database role of the member found by phone. A General member gets HTTP 200 with `ok: false` and "That option is for executives. If you need access, please ask an administrator." (A 4xx status would make Zernio report the webhook as failed.)
+- **Locks:** `/account/code` no longer counts attempts, so existing members are not locked out and there is nothing to clear. The website sign-in (phone or email plus password) is unchanged.
+- **Workflow:** point the trigger straight at the "done check" step and the menu router's default at the menu route, and delete the executive-code nodes, as in the change note.

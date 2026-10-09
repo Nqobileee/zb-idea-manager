@@ -93,7 +93,7 @@ class ZernioTest extends TestCase
     {
         $u = User::where('is_admin', false)->firstOrFail();
         foreach (['/ideas/top5', '/reports', '/ideas/approve', '/challenges/ideas'] as $path) {
-            $this->call_($path, $this->as_($u))->assertForbidden();
+            $this->call_($path, $this->as_($u))->assertOk()->assertJson(['ok' => false])->assertSee('for executives');
         }
     }
 
@@ -484,52 +484,6 @@ class ZernioTest extends TestCase
         $this->call_('/account/email', ['contact' => ['phone' => '263774999999'], 'leEmail' => 'x@example.com'])->assertOk()->assertJson(['ok' => false]);
     }
 
-    public function test_the_executive_code_upgrades_the_account_and_ordinary_words_are_ignored(): void
-    {
-        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
-        $c = ['contact' => ['phone' => '263775000001', 'name' => 'Chipo Dube']];
-
-        // ordinary words never count towards a lockout, however many times they are sent
-        foreach (['Pipeline', 'menu', 'challenges', 'Reports', 'Top ideas', 'yes please'] as $word) {
-            $this->call_('/account/code', $c + ['switchCode' => $word])->assertOk()->assertExactJson(['ok' => false]);
-        }
-        $this->assertNull(User::where('phone', '263775000001')->first());
-
-        // the correct code creates the member first when the number is unknown, then makes them an executive
-        $this->call_('/account/code', $c + ['switchCode' => ' zb-exec-2026 '])->assertJson(['ok' => true, 'elevated' => true])->assertSee('Welcome, Chipo');
-        $u = User::where('phone', '263775000001')->firstOrFail();
-        $this->assertTrue($u->is_admin);
-
-        // created by the code first: the welcome and temporary password are still shown on the first /link
-        $this->call_('/link', $c)->assertJson(['is_new' => true, 'is_executive' => true])->assertJsonMissing(['temp_password' => '']);
-        $this->call_('/account/code', $c + ['switchCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => true, 'elevated' => true])->assertSee('already have');
-    }
-
-    public function test_five_wrong_code_attempts_lock_the_number_but_words_still_pass(): void
-    {
-        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
-        $c = ['contact' => ['phone' => '263775000002']];
-        foreach (range(1, 5) as $i) {
-            $this->call_('/account/code', $c + ['switchCode' => 'ZB-WRONG-'.$i])->assertExactJson(['ok' => false]);
-        }
-        $this->call_('/account/code', $c + ['switchCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => false, 'locked' => true]);
-        $this->call_('/account/code', $c + ['switchCode' => 'Pipeline'])->assertExactJson(['ok' => false]);
-
-        config(['ideas.executive_code' => '']);
-        $this->call_('/account/code', ['contact' => ['phone' => '263775000003'], 'switchCode' => 'ZB-ANYTHING'])->assertExactJson(['ok' => false]);
-    }
-
-    public function test_the_temporary_password_never_appears_in_the_logs(): void
-    {
-        config(['ideas.temp_password' => 'SecretTemp99', 'ideas.executive_code' => 'ZB-EXEC-2026']);
-        \Illuminate\Support\Facades\Log::spy();
-        $this->call_('/link', ['contact' => ['phone' => '263776000001']]);
-        $this->call_('/account/code', ['contact' => ['phone' => '263776000001'], 'switchCode' => 'ZB-EXEC-2026']);
-        \Illuminate\Support\Facades\Log::shouldNotHaveReceived('info', fn ($m, $ctx = []) => str_contains(json_encode([$m, $ctx]), 'SecretTemp99'));
-        \Illuminate\Support\Facades\Log::shouldNotHaveReceived('notice', fn ($m, $ctx = []) => str_contains(json_encode([$m, $ctx]), 'SecretTemp99'));
-        $this->assertTrue(true);
-    }
-
     public function test_members_without_an_email_can_be_approved_without_errors(): void
     {
         $this->call_('/link', ['contact' => ['phone' => '263777000001', 'name' => 'No Email']]);
@@ -537,5 +491,36 @@ class ZernioTest extends TestCase
         $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $u->id, 'title' => 'No mailbox', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
         app(\App\Services\IdeaActions::class)->approve($idea, User::where('is_admin', true)->first());
         $this->assertTrue($idea->fresh()->approved);
+    }
+
+    public function test_the_retired_code_endpoint_never_locks_anyone_and_never_changes_a_role(): void
+    {
+        config(['ideas.executive_code' => 'ZB-EXEC-2026']);
+        $c = ['contact' => ['phone' => '263775000010', 'name' => 'Thanks Person']];
+        $this->call_('/link', $c)->assertJson(['is_new' => true, 'is_executive' => false]);
+
+        foreach (['Thanks!', 'Pass123', 'ZB-EXEC-2026', 'ZB-WRONG-1', 'Pipeline', 'ZB-WRONG-2', 'ZB-WRONG-3', 'ZB-WRONG-4', 'ZB-WRONG-5', 'ZB-WRONG-6'] as $word) {
+            $this->call_('/account/code', $c + ['switchCode' => $word])->assertOk()->assertExactJson(['ok' => false, 'elevated' => false, 'locked' => false]);
+        }
+        $u = User::where('phone', '263775000010')->firstOrFail();
+        $this->assertFalse($u->is_admin); // even the right code typed in WhatsApp changes nothing
+
+        // the bot still works normally afterwards
+        $this->call_('/ideas/top', $c)->assertOk()->assertJson(['ok' => true]);
+    }
+
+    public function test_the_role_comes_only_from_the_database_and_follows_changes(): void
+    {
+        $c = ['contact' => ['phone' => '263775000011', 'name' => 'Role Person']];
+        $this->call_('/link', $c)->assertJson(['is_executive' => false]);
+        $this->call_('/reports', $c + ['reportChoice' => 'Programme summary'])->assertOk()->assertJson(['ok' => false])->assertSee('for executives');
+
+        User::where('phone', '263775000011')->update(['is_admin' => true]);
+        $this->call_('/link', $c)->assertJson(['is_executive' => true, 'is_new' => false]);
+        $this->call_('/reports', $c + ['reportChoice' => 'Programme summary'])->assertJson(['ok' => true]);
+
+        User::where('phone', '263775000011')->update(['is_admin' => false]);
+        $this->call_('/link', $c)->assertJson(['is_executive' => false]);
+        $this->call_('/ideas/top5', $c)->assertOk()->assertJson(['ok' => false]);
     }
 }

@@ -86,9 +86,10 @@ class ZernioController extends Controller
         return $this->fail('I could not find your Idea Manager account yet. Please finish registration first.', 404);
     }
 
+    /** A polite reply with HTTP 200: a 4xx would make Zernio treat the webhook as failed and show "not reachable". */
     private function onlyExecutives(): JsonResponse
     {
-        return $this->fail('That is only available to executives.', 403);
+        return $this->fail('That option is for executives. If you need access, please ask an administrator.');
     }
 
     /** Remember the order of a numbered list for this person, so "3" can be turned back into an id. */
@@ -186,38 +187,13 @@ class ZernioController extends Controller
         return $this->reply("Your email {$email} is now linked. You can also sign in with it on the website.");
     }
 
-    /** Typing the executive access code in WhatsApp upgrades the account to Executive admin. Anything else is ignored. */
+    /**
+     * Retired. The bot no longer sends words here and nothing is ever locked: a member's role comes only from the
+     * database (changed there or in the super admin portal), never from something typed in WhatsApp.
+     */
     public function accountCode(Request $r): JsonResponse
     {
-        $secret = (string) config('ideas.executive_code');
-        $phone = $this->phone($r);
-        $text = trim((string) $this->input($r, 'switchCode', ''));
-        $ignore = fn () => response()->json(['ok' => false]);
-        if ($secret === '' || ! $phone || $text === '') {
-            return $ignore();
-        }
-        // only text that looks like a code attempt can count against the lockout, so ordinary words never lock anyone out
-        $looksLikeCode = Str::startsWith(Str::lower($text), 'zb-') || (mb_strlen($text) === mb_strlen($secret) && str_contains($text, '-') === str_contains($secret, '-'));
-        $key = 'zernio-code:'.$phone;
-        if ($looksLikeCode && RateLimiter::tooManyAttempts($key, 5)) {
-            return response()->json(['ok' => false, 'locked' => true, 'message' => 'Too many wrong codes. Please try again in 15 minutes.']);
-        }
-        if (! hash_equals(Str::lower($secret), Str::lower($text))) {
-            if ($looksLikeCode) {
-                RateLimiter::hit($key, 900);
-            }
-
-            return $ignore();
-        }
-        RateLimiter::clear($key);
-        $user = User::where('phone', $phone)->first() ?? $this->accounts->createMember($phone, (string) ($this->input($r, 'name') ?? data_get($r->all(), 'contact.name')));
-        if ($user->is_admin) {
-            return $this->reply('You already have Executive admin access.', ['elevated' => true]);
-        }
-        $user->update(['is_admin' => true]);
-        \Log::notice('Executive admin granted from WhatsApp', ['user_id' => $user->id, 'phone' => $phone, 'at' => now()->toDateTimeString()]);
-
-        return $this->reply("Welcome, {$user->first_name}. You now have Executive admin access: you can post challenges, approve ideas and see reports and AI insights.", ['elevated' => true]);
+        return response()->json(['ok' => false, 'elevated' => false, 'locked' => false]);
     }
 
     /** The greeting fields every sign-in style reply carries, with a plain fallback so the bot's menu text is never empty. */
