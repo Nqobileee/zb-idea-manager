@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['admin' => EnsureExecutive::class, 'zernio' => \App\Http\Middleware\ZernioSecret::class]);
+        $middleware->alias(['admin' => EnsureExecutive::class, 'zernio' => \App\Http\Middleware\ZernioSecret::class, 'fresh.password' => \App\Http\Middleware\ForcePasswordChange::class]);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('home'));
         $middleware->preventRequestForgery(except: ['webhooks/whatsapp', 'api/zernio/*']);

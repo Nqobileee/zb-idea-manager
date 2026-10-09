@@ -346,4 +346,14 @@ class ZernioTest extends TestCase
         }
         $this->call_('/account/switch', ['contact' => ['phone' => '263779300002'], 'switchCode' => 'SWITCH-9999'])->assertJson(['ok' => false, 'locked' => true]);
     }
+
+    public function test_chatbot_sign_in_with_the_generic_password_flags_a_forced_change(): void
+    {
+        config(['ideas.default_password' => 'Pass123']);
+        $u = User::where('is_admin', false)->firstOrFail();
+        $u->update(['password' => \Illuminate\Support\Facades\Hash::make('Pass123')]);
+        $this->call_('/account/login', ['regEmail' => $u->email, 'regPassword' => 'Pass123', 'contact' => ['phone' => '263779400001']])
+            ->assertJson(['ok' => true, 'must_change_password' => true])->assertSee('temporary password');
+        $this->assertTrue($u->fresh()->must_change_password);
+    }
 }

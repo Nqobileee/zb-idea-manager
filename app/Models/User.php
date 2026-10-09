@@ -26,6 +26,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'whatsapp_opt_in' => 'boolean',
             'wa_greeted_on' => 'date',
+            'must_change_password' => 'boolean',
         ];
     }
 

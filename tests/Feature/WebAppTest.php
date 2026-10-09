@@ -335,4 +335,44 @@ class WebAppTest extends TestCase
         $stranger = User::where('id', '!=', $me->id)->whereNotIn('id', [$conv->user_a, $conv->user_b])->first();
         $this->actingAs($stranger)->get('/chat/'.$conv->id)->assertForbidden();
     }
+
+    public function test_old_accounts_without_a_password_get_the_generic_one_and_must_change_it(): void
+    {
+        config(['ideas.default_password' => 'Pass123']);
+        $old = User::factory()->create(['email' => 'old.account@example.com', 'password' => null, 'is_admin' => false]);
+        $has = User::factory()->create(['email' => 'has.pass@example.com', 'password' => \Illuminate\Support\Facades\Hash::make('keep-me-1234')]);
+        $wa = User::factory()->create(['email' => '263770000099@whatsapp.invalid', 'password' => null]);
+
+        $this->artisan('ideas:set-default-passwords')->assertSuccessful();
+        $this->assertTrue($old->fresh()->must_change_password);
+        $this->assertFalse($has->fresh()->must_change_password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('keep-me-1234', $has->fresh()->password));
+        $this->assertNull($wa->fresh()->password);
+
+        Livewire::test(Login::class)->set('email', 'old.account@example.com')->set('password', 'Pass123')->call('signIn')->assertRedirect(route('password.change'));
+        $this->assertAuthenticatedAs($old);
+
+        $this->get('/')->assertRedirect(route('password.change'));
+        $this->get('/pipeline')->assertRedirect(route('password.change'));
+
+        Livewire::test(\App\Livewire\Auth\ChangePassword::class)->set('password', 'Pass123')->set('password_confirmation', 'Pass123')->call('save')->assertHasErrors('password');
+        Livewire::test(\App\Livewire\Auth\ChangePassword::class)->set('password', 'short')->set('password_confirmation', 'short')->call('save')->assertHasErrors('password');
+        Livewire::test(\App\Livewire\Auth\ChangePassword::class)->set('password', 'my-own-pass-9')->set('password_confirmation', 'my-own-pass-9')->call('save')->assertRedirect();
+
+        $old->refresh();
+        $this->assertFalse($old->must_change_password);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('my-own-pass-9', $old->password));
+        $this->get('/')->assertOk();
+        auth()->logout();
+        Livewire::test(Login::class)->set('email', 'old.account@example.com')->set('password', 'Pass123')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
+    }
+
+    public function test_generic_password_can_skip_executive_admins(): void
+    {
+        config(['ideas.default_password' => 'Pass123']);
+        $admin = User::factory()->create(['email' => 'boss.old@example.com', 'password' => null, 'is_admin' => true]);
+        $this->artisan('ideas:set-default-passwords --except-admins')->assertSuccessful();
+        $this->assertNull($admin->fresh()->password);
+    }
 }

@@ -41,6 +41,11 @@ class Login extends Component
         }
         RateLimiter::clear($key);
         session()->regenerate();
+        if ($this->password === (string) config('ideas.default_password') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'must_change_password')) {
+            Auth::user()->forceFill(['must_change_password' => true])->save();
+
+            return redirect()->route('password.change');
+        }
 
         return redirect()->intended(Auth::user()->is_admin ? route('admin.ranking') : route('home'));
     }

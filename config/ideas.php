@@ -14,6 +14,10 @@ return [
         'member' => ['email' => env('IDEAS_DEMO_MEMBER_EMAIL'), 'password' => env('IDEAS_DEMO_MEMBER_PASSWORD')],
     ],
 
+    // Generic password given to old accounts that had none (see `php artisan ideas:set-default-passwords`).
+    // Signing in with it always forces a password change.
+    'default_password' => env('IDEAS_DEFAULT_PASSWORD', 'Pass123'),
+
     // Code a person types in WhatsApp to sign out of the account linked to their number and start sign-in again.
     // Empty disables switching.
     'switch_code' => env('IDEAS_SWITCH_CODE', ''),

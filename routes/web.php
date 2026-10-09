@@ -4,6 +4,7 @@ use App\Http\Controllers\WhatsappWebhookController;
 use App\Http\Controllers\ZernioController;
 use App\Livewire\ActivityFeed;
 use App\Livewire\Admin;
+use App\Livewire\Auth\ChangePassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Challenges;
 use App\Livewire\ChallengeCreate;
@@ -73,7 +74,9 @@ Route::post('/logout', function () {
     return redirect()->route('login');
 })->name('logout');
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth')->get('/password/change', ChangePassword::class)->name('password.change');
+
+Route::middleware(['auth', 'fresh.password'])->group(function () {
     Route::get('/', Feed::class)->name('home');
     Route::get('/ideas/create', IdeaCreate::class)->name('ideas.create');
     Route::get('/ideas/{idea}/edit', IdeaCreate::class)->name('ideas.edit');

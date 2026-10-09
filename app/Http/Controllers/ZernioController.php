@@ -530,8 +530,12 @@ class ZernioController extends Controller
         }
         RateLimiter::clear($key);
         $this->attachPhone($user, $phone);
+        $temporary = $password === (string) config('ideas.default_password') && Schema::hasColumn('users', 'must_change_password');
+        if ($temporary) {
+            $user->forceFill(['must_change_password' => true])->save();
+        }
 
-        return $this->reply("You are signed in, {$user->first_name}.", ['full_name' => $user->name, 'first_name' => $user->first_name, 'role' => $user->is_admin ? 'executive' : 'general', 'user_id' => $user->id]);
+        return $this->reply("You are signed in, {$user->first_name}.".($temporary ? ' That is a temporary password: please choose your own when you sign in at '.route('login').'.' : ''), ['full_name' => $user->name, 'first_name' => $user->first_name, 'role' => $user->is_admin ? 'executive' : 'general', 'user_id' => $user->id, 'must_change_password' => $temporary]);
     }
 
     public function accountRegister(Request $r): JsonResponse
