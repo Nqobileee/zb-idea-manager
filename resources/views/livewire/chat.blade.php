@@ -16,7 +16,8 @@
     <div @class(['grid overflow-hidden md:h-[calc(100dvh-160px)] md:min-h-[420px] md:grid-cols-[300px_minmax(0,1fr)] md:rounded-[20px] md:border md:border-line', 'h-dvh' => (bool) $conv, 'h-[calc(100dvh-190px)]' => ! $conv])>
         {{-- Conversation list: hidden on phones while a thread is open --}}
         <div @class(['overflow-y-auto md:border-r md:border-line', 'hidden md:block' => (bool) $conv])>
-            {{-- The all-staff group chat is always pinned on top --}}
+            {{-- The all-staff group chat is always pinned on top (absent only until its migration has run) --}}
+            @if ($group)
             <button wire:click="open({{ $group->id }})" wire:key="cv{{ $group->id }}" @class(['flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left hover:bg-surface', 'bg-tint' => $conv?->id === $group->id])>
                 <span class="grid size-[42px] flex-none place-items-center rounded-full bg-brand text-white"><x-icon name="users" :size="20" /></span>
                 <span class="min-w-0 grow">
@@ -24,6 +25,7 @@
                     <span class="flex items-center gap-2"><span class="block truncate text-sm text-muted">@if ($group->last){{ $group->last->user_id === $me->id ? 'You' : $group->last->sender->first_name }}: {{ $group->last->body }}@else{{ $members }} members. Say hello to everyone.@endif</span>@if ($group->unread)<span class="count !ml-auto">{{ $group->unread }}</span>@endif</span>
                 </span>
             </button>
+            @endif
             @forelse ($list as $c)
                 @php($other = $c->other($me))
                 <button wire:click="open({{ $c->id }})" wire:key="cv{{ $c->id }}" @class(['flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface', 'bg-tint' => $conv?->id === $c->id])>
@@ -59,7 +61,7 @@
                                 <button type="button" wire:click="start({{ $m->user_id }})" class="block text-xs font-semibold text-brand hover:underline" title="Chat privately with {{ $m->sender->first_name }}">{{ $m->sender->name }}<x-verified :user="$m->sender" /></button>
                             @endif
                             {{ $m->body }}
-                            <small @class(['mt-0.5 block text-[11px]', 'text-white/70' => $mine, 'text-muted' => ! $mine])>{{ $m->created_at->diffForHumans(null, true, true) }}@if ($mine)<span class="ml-1 inline-flex align-[-3px] {{ $m->delivered_at ? 'rounded-full bg-white px-1 text-brand' : '' }}" title="{{ $m->delivered_at ? 'Delivered' : 'Sent' }}"><x-icon :name="$m->delivered_at ? 'checks' : 'check'" :size="15" /><span class="sr-only">{{ $m->delivered_at ? 'Delivered' : 'Sent' }}</span></span>@endif</small>
+                            <small @class(['mt-0.5 block text-[11px]', 'text-white/70' => $mine, 'text-muted' => ! $mine])>{{ $m->created_at->diffForHumans(null, true, true) }}@if ($mine && $group)<span class="ml-1 inline-flex align-[-3px] {{ $m->delivered_at ? 'rounded-full bg-white px-1 text-brand' : '' }}" title="{{ $m->delivered_at ? 'Delivered' : 'Sent' }}"><x-icon :name="$m->delivered_at ? 'checks' : 'check'" :size="15" /><span class="sr-only">{{ $m->delivered_at ? 'Delivered' : 'Sent' }}</span></span>@endif</small>
                         </div>
                     @empty
                         <p class="hint m-auto text-center">No messages yet. Be the first to say hello.</p>

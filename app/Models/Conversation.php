@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Conversation extends Model
 {
@@ -47,6 +48,14 @@ class Conversation extends Model
         [$a, $b] = $x->id < $y->id ? [$x->id, $y->id] : [$y->id, $x->id];
 
         return static::firstOrCreate(['user_a' => $a, 'user_b' => $b]);
+    }
+
+    /** False until the group chat migration has run. Until then chat stays one to one, with no ticks. */
+    public static function hasGroupChat(): bool
+    {
+        static $has;
+
+        return $has ??= Schema::hasColumn('conversations', 'is_group');
     }
 
     /** The one group chat that every signed-in member belongs to. */

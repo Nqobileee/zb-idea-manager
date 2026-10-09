@@ -82,7 +82,7 @@ class Chat extends Component
         };
 
         // The all-staff group is always pinned first; private chats follow, newest on top.
-        $group = $summarise(Conversation::everyone());
+        $group = Conversation::hasGroupChat() ? $summarise(Conversation::everyone()) : null;
         $list = $me->conversations()->with(['userA', 'userB'])->get()->map($summarise)
             ->filter(fn ($c) => $c->last)->sortByDesc(fn ($c) => $c->last->created_at)->values();
 
