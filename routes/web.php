@@ -29,6 +29,11 @@ Route::middleware('zernio')->prefix('api/zernio')->controller(ZernioController::
     Route::post('/link', 'link');
     Route::post('/web-link', 'webLink');
     Route::post('/notifications', 'notifications');
+    Route::post('/notifications/list', 'notificationList');
+    Route::post('/pipeline', 'pipeline');
+    Route::post('/account/check', 'accountCheck');
+    Route::post('/account/login', 'accountLogin');
+    Route::post('/account/register', 'accountRegister');
     Route::post('/challenges/options', 'challengeOptions');
     Route::post('/challenges', 'challenges');
     Route::post('/challenges/detail', 'challengeDetail');

@@ -18,19 +18,34 @@
 
     <section class="flex items-center px-6 py-10 md:px-14">
         <div class="mx-auto w-full max-w-sm">
-            <div class="space-y-4">
+            <form wire:submit="signIn" class="space-y-4">
                 <div>
                     <h2 class="font-display text-[30px] font-bold tracking-tight">Sign in</h2>
-                    <p class="hint">Sign-in is through Smile Factory on WhatsApp.</p>
+                    <p class="hint">Use the email and password you made with the Smile Factory chatbot.</p>
                 </div>
-                <ol class="space-y-3 text-sm">
-                    <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">1</span><span>Register with the Smile Factory chatbot on WhatsApp if you have not already.</span></li>
+                <div>
+                    <label class="lbl" for="email">Email address</label>
+                    <input id="email" type="email" wire:model="email" class="inp" placeholder="you@example.com" autocomplete="email" autofocus required>
+                    @error('email')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="lbl" for="password">Password</label>
+                    <input id="password" type="password" wire:model="password" class="inp" autocomplete="current-password" required>
+                    @error('password')<p class="err">{{ $message }}</p>@enderror
+                </div>
+                @if ($error ?? $linkError)<p class="err" role="alert">{{ $error ?? $linkError }}</p>@endif
+                <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">Sign in</button>
+            </form>
+
+            <div class="mt-8 space-y-3 rounded-2xl bg-surface p-4">
+                <h3 class="font-display text-base font-bold">New here?</h3>
+                <ol class="space-y-2.5 text-sm">
+                    <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">1</span><span>Message the Smile Factory chatbot on WhatsApp (<b>+263 77 736 6886</b>) and register.</span></li>
                     <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">2</span><span>Send <b>web</b> to the chatbot.</span></li>
                     <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">3</span><span>Tap the link it sends back. It works once, for 10 minutes.</span></li>
                 </ol>
-                @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
-                @if ($waUrl)<a href="{{ $waUrl }}" class="btn btn-primary btn-lg w-full">Open WhatsApp</a>@endif
-                <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> No password and no email code. Your WhatsApp number is your sign-in.</p>
+                <p class="text-sm">Chatbot number: <a href="{{ $waUrl }}" class="font-semibold text-brand hover:underline">+263 77 736 6886</a></p>
+                <a href="{{ $waUrl }}" class="btn w-full" target="_blank" rel="noopener"><x-icon name="comment" :size="16" /> Open WhatsApp</a>
             </div>
         </div>
     </section>

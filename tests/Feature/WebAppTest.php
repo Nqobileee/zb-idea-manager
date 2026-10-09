@@ -215,9 +215,42 @@ class WebAppTest extends TestCase
         $this->assertSame($list->pluck('total')->sortDesc()->values()->all(), $list->pluck('total')->all());
     }
 
-    public function test_login_page_points_people_to_whatsapp_and_has_no_email_form(): void
+    public function test_login_page_has_email_and_password_and_whatsapp_steps_for_new_people(): void
     {
-        $this->get('/login')->assertOk()->assertSee('Smile Factory')->assertDontSee('type="email"', false);
+        $this->get('/login')->assertOk()->assertSee('Smile Factory')->assertSee('New here?')->assertSee('+263 77 736 6886')->assertSee('type="password"', false);
+    }
+
+    public function test_sign_in_with_the_email_and_password_made_in_the_chatbot(): void
+    {
+        $u = $this->employee();
+        $u->update(['password' => \Illuminate\Support\Facades\Hash::make('chat-pass-1')]);
+
+        Livewire::test(Login::class)->set('email', $u->email)->set('password', 'wrong')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
+        Livewire::test(Login::class)->set('email', 'nobody@example.com')->set('password', 'chat-pass-1')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
+
+        Livewire::test(Login::class)->set('email', strtoupper($u->email))->set('password', 'chat-pass-1')->call('signIn')->assertRedirect();
+        $this->assertAuthenticatedAs($u);
+    }
+
+    public function test_accounts_without_a_password_cannot_sign_in_with_one(): void
+    {
+        $u = $this->employee();
+        $u->update(['password' => null]);
+        Livewire::test(Login::class)->set('email', $u->email)->set('password', '')->call('signIn')->assertHasErrors('password');
+        $this->assertGuest();
+    }
+
+    public function test_repeated_wrong_passwords_are_locked_out(): void
+    {
+        $u = $this->employee();
+        $u->update(['password' => \Illuminate\Support\Facades\Hash::make('right-pass')]);
+        foreach (range(1, 5) as $i) {
+            Livewire::test(Login::class)->set('email', $u->email)->set('password', 'bad'.$i)->call('signIn');
+        }
+        Livewire::test(Login::class)->set('email', $u->email)->set('password', 'right-pass')->call('signIn')->assertNoRedirect();
+        $this->assertGuest();
     }
 
     public function test_whatsapp_link_signs_in_once_and_expires(): void

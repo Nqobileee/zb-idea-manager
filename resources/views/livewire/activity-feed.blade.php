@@ -5,7 +5,7 @@
     </div>
     @forelse ($items as $a)
         @php
-            $url = $a->idea_id ? (in_array($a->type, ['stage', 'update', 'tag'], true) ? route('projects.show', $a->idea_id) : route('ideas.show', $a->idea_id)) : ($a->challenge_id ? route('challenges.show', $a->challenge_id) : '#');
+            $url = $a->type === 'role_request' ? route('members') : ($a->idea_id ? (in_array($a->type, ['stage', 'update', 'tag'], true) ? route('projects.show', $a->idea_id) : route('ideas.show', $a->idea_id)) : ($a->challenge_id ? route('challenges.show', $a->challenge_id) : '#'));
             $text = match ($a->type) {
                 'approval' => 'approved your idea',
                 'comment' => 'commented on',
@@ -14,6 +14,7 @@
                 'update' => 'posted an update on',
                 'tag' => 'tagged you on the project',
                 'challenge' => 'posted a new challenge:',
+                'role_request' => 'asked for Executive admin access. Review it on the Members page.',
                 default => 'updated',
             };
             $target = $a->idea?->title ?? $a->challenge?->title;

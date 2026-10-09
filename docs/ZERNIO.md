@@ -22,21 +22,26 @@ Every reply is JSON: `{ "ok": true|false, "message": "<WhatsApp text>", ...extra
 
 | Path | Reads | Returns besides `message` |
 |---|---|---|
-| `/link` | `email`, `phone`, `contact.name` (or `name`), `category` | `user_id`, `first_name`, `is_executive`. Creates the account if new (tag **Hub member**, or Employee when the category says employee) and attaches the number if missing. |
+| `/link` | `contact.phone`, `email`, `name`, `category`, `password` | `user_id`, `first_name`, `is_executive`, `greeting`, `greeted_today`. Finds the account by WhatsApp number; creates it if new (tag **Hub member**). `greeting` is a time-aware hello (Africa/Harare) on the first call of the day, `""` after that. |
 | `/web-link` | | One-use sign-in link (10 minutes) in `message` |
 | `/notifications` | `menuReply` (`stop` or `start notifications`) | |
 | `/challenges/options` | | Numbered open challenges with `0. None` first; remembers the order for `options:N` |
 | `/challenges` | | Numbered open challenges with deadlines; remembers `list:N` |
-| `/challenges/detail` | `chRef` (`list:2`) | `challenge_id`, `is_executive`; who set it, closing date, idea count |
+| `/challenges/detail` | `chRef` (`list:2`) | `challenge_id`, `is_executive`; full text: who set it, closing date, idea count, the brief, and `View on the web: <link>` as the last line |
 | `/challenges/ideas` | `chDetail.body.challenge_id` | **Executives.** Up to 10 ideas by likes, plus a web link when there are more; remembers `chideas:N` |
 | `/ideas/preview` | `ideaTitle`, `ideaSummary`, `ideaDetails`, `ideaChallengeRef`, `ideaVisibility` | `ok: false` if title > 90 or summary > 300; otherwise the "Ready to post?" text |
 | `/ideas` | same as preview | `idea_id`, `code`. Saved with source `whatsapp`. |
-| `/ideas/mine` | | The person's latest 8 ideas with stage, likes, comments, Public/Private |
+| `/ideas/mine` | | Numbered latest 8 ideas with stage, likes, comments, Public/Private; remembers `mine:N` |
 | `/ideas/top` | | Top 5 the person is allowed to see; remembers `top:N` |
 | `/ideas/top5` | | **Executives.** Top 5 by score; remembers `top5:N` |
-| `/ideas/detail` | `ideaRef` | `idea_id`, `approved`, `is_executive`; author, stage, likes, comments, score |
+| `/ideas/detail` | `ideaRef` | `idea_id`, `approved`, `is_executive`; full text (header, Summary, Details trimmed under 4,000 characters) ending with `View on the web: <link>` |
 | `/ideas/like` | `ideaRef` | `liked` (true/false); toggles |
 | `/ideas/approve` | `ideaRef`, `approveNote` (`Skip` = no note) | **Executives.** Approves and notifies the author |
+| `/pipeline` | | Ideas grouped by stage the person can see, one running number, up to 3 per stage; remembers `pipeline:N`; ends with `Full pipeline: <link>` when some are hidden |
+| `/notifications/list` | | `enabled`; whether alerts are on and the 5 latest activity items with dates |
+| `/account/check` | `regEmail` | `exists`, and `first_name` when found. Nothing else is revealed. |
+| `/account/login` | `regEmail`, `regPassword`, `contact.phone` | `ok`, `full_name`, `role` (`executive` or `general`). Checks the hash, attaches the number if missing. 5 wrong tries lock that email+number for 15 minutes (`locked: true`). |
+| `/account/register` | `regName`, `regEmail`, `regPassword` (8+), `regRole`, `contact.phone` | `ok`, `role`. Same email and hashed password work on the web sign-in page. |
 | `/reports` | `reportChoice` | **Executives.** `Programme summary` (default), `Top 10 by likes`, `Awaiting approval`, `Ideas by stage`, `By challenge` |
 
 ## References
@@ -45,7 +50,7 @@ The number a person types comes back as a reference:
 
 | Reference | Meaning |
 |---|---|
-| `top:3`, `top5:2`, `chideas:4`, `list:2`, `options:1` | Position in the last list of that name shown to this person. The order is cached for 30 minutes per person, so call the list endpoint first. |
+| `top:3`, `top5:2`, `chideas:4`, `list:2`, `options:1`, `mine:2`, `pipeline:5` | Position in the last list of that name shown to this person. The order is cached for 30 minutes per person, so call the list endpoint first. |
 | `id:42` | The record with id 42 |
 | `0` (for `ideaChallengeRef`) | No challenge |
 
@@ -56,3 +61,12 @@ Ideas are resolved with the same visibility rules as the web app: executives see
 - `ideaVisibility` is **private** unless the text contains "public" (case-insensitive).
 - Drafts live in the Zernio chat variables, not here, so there is no server-side draft to resume.
 - The older in-repo bot (`WhatsappBot`, `/webhooks/whatsapp`) still works and is independent of these endpoints. Use one or the other for a given number.
+
+## Sign-in and registration
+
+- **Email and password.** The password made in the chatbot is stored hashed and is the same one the web sign-in page checks.
+- **Executive admin is a request.** `/account/register` with `regRole` = `Executive admin` creates a **General** account, stores `requested_role = executive` and adds an alert for every existing administrator. Administrators approve or decline on the **Members** page. The exception is an email listed in `IDEAS_EXECUTIVE_EMAILS` (comma separated), which is granted straight away.
+- **Passwords.** Request bodies are never logged, plain passwords are never stored, and `regPassword` is excluded from error reports.
+- **Identity.** Accounts are found by the WhatsApp number Meta verified. An email typed in chat can never take over an existing account: `/link` and `/account/register` refuse an email that already exists.
+- **Not built.** There is no "forgot password" page yet, so wrong-password replies link to the web sign-in page.
+- **Migrations to run:** `wa_greeted_on` and `requested_role` on users (`php artisan migrate --force`). Until they run, the greeting is empty and Executive requests are not recorded.

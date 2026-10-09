@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Activity;
 use App\Models\Challenge;
 use App\Models\Idea;
 use App\Models\User;
@@ -12,6 +13,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -52,13 +56,19 @@ class ZernioController extends Controller
         return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
     }
 
-    /** The person behind the request: matched by email, then by WhatsApp number. */
+    /**
+     * The person behind the request. The WhatsApp number is verified by Meta, so it identifies the account. The email
+     * typed into the chat is not verified, so it is only a fallback when Zernio sends no number at all.
+     */
     private function user(Request $r): ?User
     {
-        $email = $this->email($r);
         $phone = $this->phone($r);
+        if ($phone) {
+            return User::where('phone', $phone)->first();
+        }
+        $email = $this->email($r);
 
-        return ($email ? User::where('email', $email)->first() : null) ?? ($phone ? User::where('phone', $phone)->first() : null);
+        return $email ? User::where('email', $email)->first() : null;
     }
 
     private function reply(string $message, array $extra = [], bool $ok = true): JsonResponse
@@ -127,26 +137,48 @@ class ZernioController extends Controller
     {
         $email = $this->email($r);
         $phone = $this->phone($r);
-        if (! $email && ! $phone) {
-            return $this->fail('I need an email address or a WhatsApp number to link your account.', 422);
+        if (! $phone) {
+            return $this->fail('I need your WhatsApp number to link your account.', 422);
         }
-        $user = $this->user($r);
+        $user = User::where('phone', $phone)->first();
         if (! $user) {
+            // The chat email is unverified, so it can never take over an account that already exists.
+            if ($email && User::where('email', $email)->exists()) {
+                return $this->fail('That email already belongs to an Idea Manager account. Please contact the programme team.', 409);
+            }
+            $password = (string) $this->input($r, 'password', '');
             $user = User::create([
                 'name' => trim((string) $this->input($r, 'name')) ?: 'Member',
                 'email' => $email ?? $phone.'@'.PhoneAccounts::PLACEHOLDER_DOMAIN,
                 'phone' => $phone,
                 'is_admin' => false,
+                'password' => $password !== '' ? Hash::make($password) : null, // the password made in the chatbot, for web sign-in
                 'member_type' => stripos((string) $this->input($r, 'category'), 'employee') !== false ? 'employee' : 'hub_member',
                 'joined' => (string) now()->year,
                 'color' => '#049016',
             ]);
-        } elseif ($phone && ! $user->phone) {
-            User::where('phone', $phone)->where('id', '!=', $user->id)->update(['phone' => null]);
-            $user->update(['phone' => $phone]);
         }
 
-        return $this->reply("Linked, {$user->first_name}.", ['user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin]);
+        [$greeting, $greeted] = $this->greeting($user);
+
+        return $this->reply("Linked, {$user->first_name}.", ['user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin, 'greeting' => $greeting, 'greeted_today' => $greeted]);
+    }
+
+    /** A time-aware greeting on the first call of the day (Africa/Harare), nothing after that. Returns [text, alreadyGreeted]. */
+    private function greeting(User $u): array
+    {
+        if (! Schema::hasColumn('users', 'wa_greeted_on')) {
+            return ['', false];
+        }
+        $now = now('Africa/Harare');
+        $today = $now->toDateString();
+        if ($u->wa_greeted_on?->toDateString() === $today) {
+            return ['', true];
+        }
+        $part = $now->hour < 12 ? 'morning' : ($now->hour < 17 ? 'afternoon' : 'evening');
+        $u->forceFill(['wa_greeted_on' => $today])->save();
+
+        return ["Good {$part}, {$u->first_name}. What would you like to do today?", false];
     }
 
     public function webLink(Request $r): JsonResponse
@@ -209,7 +241,22 @@ class ZernioController extends Controller
             return $this->fail('I could not find that challenge. Pick one from the list.');
         }
 
-        return $this->reply("{$c->title}\nSet by ".($c->owner?->name ?? 'an executive').' · '.($c->deadline ? 'closes '.$c->deadline->format('j M Y') : 'no deadline')."\n{$c->ideas_count} ".Str::plural('idea', $c->ideas_count), ['challenge_id' => $c->id, 'is_executive' => (bool) $u->is_admin]);
+        $head = "{$c->title}\nSet by ".($c->owner?->name ?? 'an executive').' · '.($c->deadline ? 'closes '.$c->deadline->format('j M Y') : 'no deadline')."\n{$c->ideas_count} ".Str::plural('idea', $c->ideas_count);
+        $link = 'View on the web: '.route('challenges.show', $c);
+
+        return $this->reply($this->withLink($head."\n\nBrief\n", (string) $c->brief, $link), ['challenge_id' => $c->id, 'is_executive' => (bool) $u->is_admin]);
+    }
+
+    /** Head + body + link as one message under WhatsApp's limit. The body is trimmed so the link is always the last line. */
+    private function withLink(string $head, string $body, string $link): string
+    {
+        $room = 3900 - mb_strlen($head) - mb_strlen($link) - 2;
+        $body = trim($body);
+        if (mb_strlen($body) > $room) {
+            $body = rtrim(mb_substr($body, 0, max(0, $room - 1))).'…';
+        }
+
+        return $head.$body."\n\n".$link;
     }
 
     public function challengeIdeas(Request $r): JsonResponse
@@ -305,7 +352,9 @@ class ZernioController extends Controller
             return $this->reply('You have not posted an idea yet.');
         }
 
-        return $this->reply("Your ideas\n\n".$ideas->map(fn ($i) => "{$i->code} ".$this->line($i).' · '.($i->is_public ? 'Public' : 'Private'))->implode("\n\n"));
+        $this->rememberList($u, 'mine', $ideas->pluck('id')->all());
+
+        return $this->reply("Your ideas. Reply with a number to open one.\n\n".$ideas->values()->map(fn ($i, $n) => ($n + 1).". {$i->code} ".$this->line($i).' · '.($i->is_public ? 'Public' : 'Private'))->implode("\n\n"));
     }
 
     private function visibleRanked(User $u)
@@ -354,8 +403,12 @@ class ZernioController extends Controller
             return $this->fail('I could not find that idea. Pick one from the list.');
         }
         $score = $this->ranking->rank(null)->first(fn ($x) => $x['idea']->id === $idea->id)['total'] ?? null;
+        $head = "{$idea->code} {$idea->title}\nBy {$idea->author->name} · {$idea->status} · ".($idea->is_public ? 'Public' : 'Private')
+            ."\n{$idea->likers_count} likes · {$idea->comments_count} comments".($score !== null ? " · Score {$score}/100" : '')
+            .($idea->challenge ? "\nChallenge: {$idea->challenge->title}" : '')."\n\nSummary\n{$idea->summary}\n\nDetails\n";
+        $body = $idea->body === $idea->summary ? '' : (string) $idea->body;
 
-        return $this->reply("{$idea->code} {$idea->title}\nby {$idea->author->name} · {$idea->status}".($idea->approved ? ', approved' : '')."\n{$idea->likers_count} likes · {$idea->comments_count} comments".($score !== null ? " · score {$score}/100" : '')."\n\n{$idea->summary}", ['idea_id' => $idea->id, 'approved' => (bool) $idea->approved, 'is_executive' => (bool) $u->is_admin]);
+        return $this->reply($this->withLink($head, $body, 'View on the web: '.route('ideas.show', $idea)), ['idea_id' => $idea->id, 'approved' => (bool) $idea->approved, 'is_executive' => (bool) $u->is_admin]);
     }
 
     public function like(Request $r): JsonResponse
@@ -390,6 +443,159 @@ class ZernioController extends Controller
         $this->actions->approve($idea, $u, $note === '' || Str::lower($note) === 'skip' ? null : $note);
 
         return $this->reply("Approved {$idea->code}. The author has been told.");
+    }
+
+    // ---- sign-in and registration (the bot asks for the email first) ------------------------
+    // Never log these request bodies and never store the plain password: only a hash is kept.
+
+    private function regEmail(Request $r): ?string
+    {
+        $e = strtolower(trim((string) $this->input($r, 'regEmail', '')));
+
+        return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
+    }
+
+    /** Attach the WhatsApp number to an account that has none, unless another account already holds it. */
+    private function attachPhone(User $u, ?string $phone): void
+    {
+        if ($phone && ! $u->phone && ! User::where('phone', $phone)->exists()) {
+            $u->update(['phone' => $phone]);
+        }
+    }
+
+    public function accountCheck(Request $r): JsonResponse
+    {
+        $email = $this->regEmail($r);
+        if (! $email) {
+            return $this->fail('That does not look like an email address. Please send it again.', 422);
+        }
+        $user = User::where('email', $email)->first();
+
+        return $this->reply($user ? "Welcome back, {$user->first_name}." : 'No account found for that email yet.', ['exists' => (bool) $user] + ($user ? ['first_name' => $user->first_name] : []));
+    }
+
+    public function accountLogin(Request $r): JsonResponse
+    {
+        $email = $this->regEmail($r);
+        $phone = $this->phone($r);
+        $password = (string) $this->input($r, 'regPassword', '');
+        if (! $email || $password === '') {
+            return $this->fail('I need your email and password.', 422);
+        }
+        $reset = route('login');
+        $key = 'zernio-login:'.$email.'|'.$phone;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['ok' => false, 'locked' => true, 'message' => 'Too many wrong passwords. Sign-in is locked for 15 minutes. You can also use the web sign-in page: '.$reset]);
+        }
+        $user = User::where('email', $email)->first();
+        if (! $user || ! $user->password || ! Hash::check($password, $user->password)) {
+            RateLimiter::hit($key, 900);
+
+            return $this->fail("That password is not correct. Please try again, or sign in on the web: {$reset}");
+        }
+        RateLimiter::clear($key);
+        $this->attachPhone($user, $phone);
+
+        return $this->reply("You are signed in, {$user->first_name}.", ['full_name' => $user->name, 'first_name' => $user->first_name, 'role' => $user->is_admin ? 'executive' : 'general', 'user_id' => $user->id]);
+    }
+
+    public function accountRegister(Request $r): JsonResponse
+    {
+        $name = trim((string) $this->input($r, 'regName', ''));
+        $email = $this->regEmail($r);
+        $password = (string) $this->input($r, 'regPassword', '');
+        $phone = $this->phone($r);
+        $wantsExecutive = Str::contains(Str::lower((string) $this->input($r, 'regRole', '')), 'exec');
+
+        if (mb_strlen($name) < 2) {
+            return $this->fail('Please send your full name.');
+        }
+        if (! $email) {
+            return $this->fail('That does not look like an email address.');
+        }
+        if (mb_strlen($password) < 8) {
+            return $this->fail('Your password must be at least 8 characters.');
+        }
+        if (User::where('email', $email)->exists()) {
+            return $this->fail('That email is already registered. Please sign in instead.');
+        }
+        if ($phone && User::where('phone', $phone)->exists()) {
+            return $this->fail('This WhatsApp number is already linked to an account.');
+        }
+
+        $executive = $wantsExecutive && in_array($email, config('ideas.executive_emails'), true);
+        $user = User::create([
+            'name' => $name, 'email' => $email, 'phone' => $phone, 'password' => Hash::make($password),
+            'is_admin' => $executive, 'member_type' => 'general',
+            'joined' => (string) now()->year, 'color' => '#049016',
+        ] + ($wantsExecutive && ! $executive && Schema::hasColumn('users', 'requested_role') ? ['requested_role' => 'executive'] : []));
+
+        if ($wantsExecutive && ! $executive) {
+            foreach (User::where('is_admin', true)->get() as $admin) {
+                Activity::create(['user_id' => $admin->id, 'type' => 'role_request', 'actor_id' => $user->id]);
+            }
+
+            return $this->reply('You are registered. Your request for Executive admin access has been sent to the administrators; until it is approved you have General Member access. Sign in at '.route('login').' with this email and password.', ['role' => 'general', 'executive_requested' => true, 'user_id' => $user->id, 'first_name' => $user->first_name]);
+        }
+
+        return $this->reply($executive
+            ? 'You are registered as an Executive admin. Use this email and password to sign in at '.route('login').'.'
+            : 'You are registered as a General Member. Use this email and password to sign in at '.route('login').'.',
+            ['role' => $executive ? 'executive' : 'general', 'executive_requested' => false, 'user_id' => $user->id, 'first_name' => $user->first_name]);
+    }
+
+    // ---- pipeline and alerts -------------------------------------------------------------
+
+    public function pipeline(Request $r): JsonResponse
+    {
+        $u = $this->user($r);
+        if (! $u) {
+            return $this->unknownUser();
+        }
+        $all = Idea::feed()->visibleTo($u)->orderByDesc('likers_count')->latest()->get()->groupBy('status');
+        $n = 0;
+        $ids = [];
+        $out = ['Pipeline', ''];
+        $hidden = false;
+        foreach (Idea::STATUSES as $stage) {
+            $rows = $all->get($stage, collect());
+            $out[] = "{$stage} ({$rows->count()})";
+            foreach ($rows->take(3) as $i) {
+                $out[] = (++$n).". {$i->title} · {$i->likers_count} likes";
+                $ids[] = $i->id;
+            }
+            $hidden = $hidden || $rows->count() > 3;
+        }
+        $this->rememberList($u, 'pipeline', $ids);
+        if ($hidden) {
+            $out[] = '';
+            $out[] = 'Full pipeline: '.route('pipeline');
+        }
+
+        return $this->reply(implode("\n", $out));
+    }
+
+    public function notificationList(Request $r): JsonResponse
+    {
+        $u = $this->user($r);
+        if (! $u) {
+            return $this->unknownUser();
+        }
+        $labels = ['like' => 'liked', 'comment' => 'commented on', 'approval' => 'approved', 'stage' => 'moved'];
+        $items = Activity::with(['actor', 'idea', 'challenge'])->where('user_id', $u->id)->latest()->latest('id')->take(5)->get()->map(function (Activity $a) use ($labels) {
+            $who = $a->actor?->name ?? 'Someone';
+            $text = match ($a->type) {
+                'challenge' => "{$who} set a new challenge: ".($a->challenge?->title ?? ''),
+                'approval' => 'Your idea '.($a->idea?->title ?? '').' was approved',
+                'stage' => ($a->idea?->title ?? 'Your idea').' moved to a new stage',
+                default => "{$who} ".($labels[$a->type] ?? $a->type).' your idea '.($a->idea?->title ?? ''),
+            };
+
+            return '• '.trim($text).' · '.$a->created_at->timezone('Africa/Harare')->format('j M');
+        });
+        $enabled = (bool) $u->whatsapp_opt_in;
+
+        return $this->reply('WhatsApp alerts are '.($enabled ? 'on' : 'off').".\n\n".($items->isEmpty() ? 'No activity yet.' : "Latest activity\n".$items->implode("\n")), ['enabled' => $enabled]);
     }
 
     // ---- reports (executives) ----------------------------------------------------------
