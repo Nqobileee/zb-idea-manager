@@ -28,6 +28,23 @@
             </div>
         </div>
 
+        @if (\App\Models\Idea::hasVisibility())
+        <fieldset>
+            <legend class="lbl">Who can see this idea?</legend>
+            <div class="grid grid-cols-2 gap-2">
+                @foreach (['private' => ['Private', 'Only you and executives'], 'public' => ['Public', 'Everyone at ZB']] as $v => [$l, $d])
+                    <label @class(['cursor-pointer rounded-xl border px-3 py-2.5', 'border-brand bg-tint' => $visibility === $v, 'border-line' => $visibility !== $v])>
+                        <input type="radio" class="sr-only" value="{{ $v }}" wire:model.live="visibility">
+                        <b @class(['block text-sm', 'text-brand' => $visibility === $v])>{{ $l }}</b><small class="text-xs text-muted">{{ $d }}</small>
+                    </label>
+                @endforeach
+            </div>
+            @if ($visibility === 'public')
+                <p class="hint mt-1.5 flex gap-1.5 text-[#8a5a00]" role="note"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> Everyone at ZB will be able to view this idea, its files and the project in the pipeline.</p>
+            @endif
+        </fieldset>
+        @endif
+
         <div>
             <span class="lbl">Photos or screenshots</span>
             <label class="flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-tint-2 bg-surface p-3.5 text-muted hover:border-brand">

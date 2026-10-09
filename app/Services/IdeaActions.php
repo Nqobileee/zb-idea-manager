@@ -30,7 +30,7 @@ class IdeaActions
             'body' => $data['body'] ?: $data['summary'],
             'status' => $data['status'] ?? 'Idea',
             'source' => $source,
-        ]);
+        ] + (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : []));
     }
 
     public function update(Idea $idea, User $by, array $data): Idea
@@ -40,7 +40,7 @@ class IdeaActions
         $idea->update([
             'title' => $data['title'], 'summary' => $data['summary'], 'body' => $data['body'] ?: $data['summary'],
             'status' => $data['status'], 'challenge_id' => $data['challenge_id'] ?? null,
-        ]);
+        ] + (isset($data['visibility']) ? (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : []) : []));
         $this->recordStage($idea, $from, $by);
 
         return $idea;

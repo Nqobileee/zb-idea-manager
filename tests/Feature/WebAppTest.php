@@ -44,33 +44,6 @@ class WebAppTest extends TestCase
         $this->get('/ideas/1')->assertRedirect('/login');
     }
 
-    public function test_sign_in_with_emailed_code(): void
-    {
-        $page = Livewire::test(Login::class)->set('email', 'tinashe.moyo@zb.co.zw')->call('sendCode')->assertSet('step', 'code');
-        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
-
-        $page->set('code', '000000')->call('verify')->assertSet('error', fn ($e) => $e !== null);
-        $this->assertGuest();
-
-        $page->set('code', $m[1])->call('verify')->assertRedirect();
-        $this->assertAuthenticatedAs($this->employee());
-    }
-
-    public function test_any_valid_email_can_sign_in_but_junk_cannot(): void
-    {
-        Livewire::test(Login::class)->set('email', 'not-an-email')->call('sendCode')->assertSet('step', 'email');
-        $this->assertDatabaseCount('login_codes', 0);
-        Livewire::test(Login::class)->set('email', 'someone@gmail.com')->call('sendCode')->assertSet('step', 'code');
-        $this->assertDatabaseCount('login_codes', 1);
-    }
-
-    public function test_domain_restriction_still_works_when_configured(): void
-    {
-        config(['ideas.email_domain' => 'zb.co.zw']);
-        Livewire::test(Login::class)->set('email', 'someone@gmail.com')->call('sendCode')->assertSet('step', 'email');
-        Livewire::test(Login::class)->set('email', 'someone@zb.co.zw')->call('sendCode')->assertSet('step', 'code');
-    }
-
     public function test_feed_shows_seeded_ideas_with_images(): void
     {
         $this->actingAs($this->employee());
@@ -118,7 +91,7 @@ class WebAppTest extends TestCase
     public function test_author_can_edit_their_idea_and_others_cannot(): void
     {
         $me = $this->employee();
-        $mine = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Old title', 'summary' => 'Old summary', 'body' => 'Old body', 'status' => 'Idea']);
+        $mine = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Old title', 'summary' => 'Old summary', 'body' => 'Old body', 'status' => 'Idea', 'visibility' => 'public']);
 
         $this->actingAs($me);
         Livewire::test(IdeaCreate::class, ['idea' => $mine])
@@ -138,7 +111,7 @@ class WebAppTest extends TestCase
     {
         Storage::fake('public');
         $me = $this->employee();
-        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Doomed', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Doomed', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
         Storage::disk('public')->put('ideas/docs/x.pdf', 'pdf');
         $idea->files()->create(['kind' => 'doc', 'name' => 'x.pdf', 'path' => 'ideas/docs/x.pdf']);
         $idea->comments()->create(['user_id' => $me->id, 'body' => 'hi']);
@@ -155,7 +128,7 @@ class WebAppTest extends TestCase
     public function test_only_author_or_executive_can_delete(): void
     {
         $me = $this->employee();
-        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Mine', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $me->id, 'title' => 'Mine', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
         $stranger = User::where('id', '!=', $me->id)->where('is_admin', false)->first();
 
         $this->actingAs($stranger);
@@ -165,17 +138,6 @@ class WebAppTest extends TestCase
         $this->actingAs($this->executive());
         Livewire::test(IdeaShow::class, ['idea' => $idea])->call('deleteIdea')->assertRedirect();
         $this->assertDatabaseMissing('ideas', ['id' => $idea->id]);
-    }
-
-    public function test_new_accounts_get_no_made_up_role_department_or_bio(): void
-    {
-        config(['ideas.require_code' => false, 'ideas.admin_code' => 'sesame']);
-        Livewire::test(Login::class)->set('email', 'blank.slate@example.com')->set('role', 'admin')->set('adminCode', 'sesame')->call('sendCode');
-        $u = User::where('email', 'blank.slate@example.com')->firstOrFail();
-        $this->assertNull($u->title);
-        $this->assertNull($u->dept);
-        $this->assertNull($u->bio);
-        $this->assertTrue($u->is_admin);
     }
 
     public function test_executive_manages_their_own_challenges(): void
@@ -193,7 +155,7 @@ class WebAppTest extends TestCase
         $this->assertSame('Renamed', $ch->fresh()->title);
         $this->assertSame(['queue', 'cash'], $ch->fresh()->keywords);
 
-        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $exec->id, 'challenge_id' => $ch->id, 'title' => 't', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        $idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $exec->id, 'challenge_id' => $ch->id, 'title' => 't', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
         Livewire::test(\App\Livewire\ChallengeShow::class, ['challenge' => $ch])->call('deleteChallenge')->assertRedirect();
         $this->assertDatabaseMissing('challenges', ['id' => $ch->id]);
         $this->assertNull($idea->fresh()->challenge_id); // the idea is kept
@@ -253,46 +215,61 @@ class WebAppTest extends TestCase
         $this->assertSame($list->pluck('total')->sortDesc()->values()->all(), $list->pluck('total')->all());
     }
 
-    public function test_a_valid_email_alone_creates_an_account_when_codes_are_off(): void
+    public function test_login_page_points_people_to_whatsapp_and_has_no_email_form(): void
     {
-        config(['ideas.require_code' => false]);
-        Livewire::test(Login::class)->set('email', 'brand.new@example.com')->call('sendCode')->assertRedirect();
-        $user = User::where('email', 'brand.new@example.com')->firstOrFail();
-        $this->assertAuthenticatedAs($user);
-        $this->assertSame('Brand New', $user->name);
-        $this->assertDatabaseCount('login_codes', 0);
-
-        auth()->logout();
-        Livewire::test(Login::class)->set('email', 'not-an-email')->call('sendCode')->assertNoRedirect();
-        $this->assertGuest();
+        $this->get('/login')->assertOk()->assertSee('Smile Factory')->assertDontSee('type="email"', false);
     }
 
-    public function test_role_choice_at_sign_in_for_now(): void
+    public function test_whatsapp_link_signs_in_once_and_expires(): void
     {
-        config(['ideas.admin_code' => 'sesame']);
-        $wrong = Livewire::test(Login::class)->set('email', 'sneaky@example.com')->set('role', 'admin')->set('adminCode', 'nope')->call('sendCode');
-        $wrong->assertSet('step', 'email');
-        $this->assertNull(User::where('email', 'sneaky@example.com')->first());
-
-        $hub = Livewire::test(Login::class)->set('email', 'hub.person@example.com')->set('role', 'hub_member')->call('sendCode');
-        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
-        $hub->set('code', $m[1])->call('verify');
-        $hubUser = User::where('email', 'hub.person@example.com')->firstOrFail();
-        $this->assertFalse($hubUser->is_admin);
-        $this->assertSame('Hub member', $hubUser->role_label);
-        auth()->logout();
-
-        $page = Livewire::test(Login::class)->set('email', 'new.person@example.com')->set('role', 'admin')->set('adminCode', 'sesame')->call('sendCode');
-        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
-        $page->set('code', $m[1])->call('verify');
-        $this->assertTrue(User::where('email', 'new.person@example.com')->firstOrFail()->is_admin);
+        $accounts = app(\App\Services\PhoneAccounts::class);
+        $link = $accounts->loginLink($this->employee());
+        $this->get($link)->assertRedirect();
+        $this->assertAuthenticatedAs($this->employee());
 
         auth()->logout();
-        config(['ideas.allow_role_choice' => false]);
-        $page = Livewire::test(Login::class)->set('email', 'other.person@example.com')->set('role', 'admin')->call('sendCode');
-        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
-        $page->set('code', $m[1])->call('verify');
-        $this->assertFalse(User::where('email', 'other.person@example.com')->firstOrFail()->is_admin);
+        $this->get($link)->assertRedirect(route('login'));
+        $this->assertGuest();
+        $this->get('/wa-login/not-a-real-token')->assertRedirect(route('login'));
+    }
+
+    public function test_accounts_from_a_whatsapp_number_start_blank_and_are_not_admins(): void
+    {
+        $u = app(\App\Services\PhoneAccounts::class)->forPhone('263770000001', 'Edith Muyambiri');
+        $this->assertSame('Edith Muyambiri', $u->name);
+        $this->assertNull($u->title);
+        $this->assertNull($u->dept);
+        $this->assertNull($u->bio);
+        $this->assertFalse($u->is_admin);
+        $this->assertSame('General', $u->role_label);
+        $this->assertTrue(app(\App\Services\PhoneAccounts::class)->forPhone('263770000001')->is($u));
+    }
+
+    public function test_ideas_are_private_by_default_and_public_ones_are_visible_to_everyone(): void
+    {
+        $author = User::factory()->create(['is_admin' => false]);
+        $other = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($author);
+        Livewire::test(IdeaCreate::class)->set('title', 'Secret plan')->set('summary', 'Only for me')->call('save');
+        $private = Idea::where('title', 'Secret plan')->firstOrFail();
+        $this->assertSame('private', $private->visibility);
+
+        Livewire::test(IdeaCreate::class)->set('title', 'Open plan')->set('summary', 'For all')->set('visibility', 'public')->call('save');
+        $public = Idea::where('title', 'Open plan')->firstOrFail();
+        $this->assertSame('public', $public->visibility);
+
+        $this->get(route('ideas.show', $private))->assertOk();
+
+        $this->actingAs($other);
+        $this->get(route('ideas.show', $private))->assertNotFound();
+        $this->get(route('projects.show', $private))->assertNotFound();
+        $this->get(route('ideas.show', $public))->assertOk();
+        Livewire::test(\App\Livewire\Pipeline::class)->assertDontSee('Secret plan')->assertSee('Open plan');
+        Livewire::test(Feed::class)->assertDontSee('Secret plan');
+
+        $this->actingAs($this->executive());
+        $this->get(route('ideas.show', $private))->assertOk();
+        Livewire::test(\App\Livewire\Pipeline::class)->assertSee('Secret plan');
     }
 
     public function test_chat_send_and_privacy(): void

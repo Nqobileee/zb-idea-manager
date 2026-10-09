@@ -18,52 +18,20 @@
 
     <section class="flex items-center px-6 py-10 md:px-14">
         <div class="mx-auto w-full max-w-sm">
-            @if ($step === 'email')
-                <form wire:submit="sendCode" class="space-y-4">
-                    <div>
-                        <h2 class="font-display text-[30px] font-bold tracking-tight">Sign in</h2>
-                        <p class="hint">Use your email address.</p>
-                    </div>
-                    <div>
-                        <label class="lbl" for="email">Email address</label>
-                        <input id="email" type="email" wire:model="email" class="inp" placeholder="you@example.com" autocomplete="email" autofocus required>
-                    </div>
-                    @if ($roleChoice)
-                        <fieldset>
-                            <legend class="lbl">Sign in as</legend>
-                            <div class="grid grid-cols-2 gap-2">
-                                @foreach ($roles as $v => $l)
-                                    <label @class(['cursor-pointer rounded-xl border px-3 py-2.5 text-center text-sm font-semibold', 'border-brand bg-tint text-brand' => $role === $v, 'border-line' => $role !== $v])><input type="radio" class="sr-only" value="{{ $v }}" wire:model.live="role">{{ $l }}</label>
-                                @endforeach
-                            </div>
-                            @if ($role === 'admin')
-                                <div class="mt-3">
-                                    <label class="lbl" for="adminCode">Executive access code</label>
-                                    <input id="adminCode" type="password" wire:model="adminCode" class="inp" autocomplete="off" required>
-                                </div>
-                            @endif
-                        </fieldset>
-                    @endif
-                    @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
-                    <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">{{ $needsCode ? 'Email me a code' : 'Continue' }}</button>
-                    <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> {{ $needsCode ? 'We email you a 6-digit code. No password needed.' : 'No password or code needed for now. Your account is created the first time you continue.' }}</p>
-                </form>
-            @else
-                <form wire:submit="verify" class="space-y-4">
-                    <button type="button" wire:click="back" class="hint flex items-center gap-1 hover:text-ink"><x-icon name="back" :size="16" /> Change email</button>
-                    <div>
-                        <h2 class="font-display text-[30px] font-bold tracking-tight">Check your email</h2>
-                        <p class="hint">We sent a 6-digit code to <b class="text-ink">{{ $email }}</b>.</p>
-                    </div>
-                    <div>
-                        <label class="lbl" for="code">Verification code</label>
-                        <input id="code" wire:model="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" autofocus class="inp h-[60px] text-center font-mono text-[26px] tracking-[.5em]">
-                    </div>
-                    @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
-                    @if ($demo)<p class="hint">Demo mode: any 6 digits work.</p>@elseif (app()->environment('local'))<p class="hint">Local: the code is in storage/logs/laravel.log.</p>@endif
-                    <button class="btn btn-primary btn-lg w-full" wire:loading.attr="disabled">Verify and continue</button>
-                </form>
-            @endif
+            <div class="space-y-4">
+                <div>
+                    <h2 class="font-display text-[30px] font-bold tracking-tight">Sign in</h2>
+                    <p class="hint">Sign-in is through Smile Factory on WhatsApp.</p>
+                </div>
+                <ol class="space-y-3 text-sm">
+                    <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">1</span><span>Register with the Smile Factory chatbot on WhatsApp if you have not already.</span></li>
+                    <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">2</span><span>Send <b>web</b> to the chatbot.</span></li>
+                    <li class="flex gap-3"><span class="grid size-6 flex-none place-items-center rounded-full bg-tint text-xs font-bold text-brand">3</span><span>Tap the link it sends back. It works once, for 10 minutes.</span></li>
+                </ol>
+                @if ($error)<p class="err" role="alert">{{ $error }}</p>@endif
+                @if ($waUrl)<a href="{{ $waUrl }}" class="btn btn-primary btn-lg w-full">Open WhatsApp</a>@endif
+                <p class="hint flex gap-1.5"><x-icon name="shield" :size="14" class="mt-0.5 flex-none" /> No password and no email code. Your WhatsApp number is your sign-in.</p>
+            </div>
         </div>
     </section>
 </div>

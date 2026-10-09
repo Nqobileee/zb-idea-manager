@@ -32,12 +32,11 @@ class WhatsappBotTest extends TestCase
         return $this->postJson('/webhooks/whatsapp', ['entry' => [['changes' => [['value' => ['messages' => [$msg]]]]]]]);
     }
 
+    /** Put the user's number on their account, as Smile Factory registration would, then say hi. */
     private function link(string $email = 'tinashe.moyo@zb.co.zw', ?string $phone = null): void
     {
+        User::where('email', $email)->update(['phone' => $phone ?? $this->phone]);
         $this->say('hi', phone: $phone);
-        $this->say($email, phone: $phone);
-        preg_match('/code is (\d{6})/', SentEmail::where('type', 'Code')->latest('id')->firstOrFail()->body, $m);
-        $this->say($m[1], phone: $phone);
     }
 
     public function test_webhook_verification_handshake(): void
@@ -55,32 +54,35 @@ class WhatsappBotTest extends TestCase
         $this->call('POST', '/webhooks/whatsapp', [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, 'shh')], $body)->assertOk();
     }
 
-    public function test_link_a_number_with_an_email_code(): void
+    public function test_a_new_number_gets_an_account_with_no_email_or_code_step(): void
     {
-        $this->say('hi');
-        $this->assertSame('link_email', WhatsappSession::first()->state);
-        $this->say('not an email');
-        $this->assertSame('link_email', WhatsappSession::first()->state);
-        $this->say('tinashe.moyo@zb.co.zw');
-        $this->assertSame('link_code', WhatsappSession::first()->state);
-        $this->say('000000');
-        $this->assertNull(WhatsappSession::first()->user_id);
-
-        $this->link();
-        $user = User::where('email', 'tinashe.moyo@zb.co.zw')->first();
-        $this->assertSame($this->phone, $user->phone);
-        $this->assertSame($user->id, WhatsappSession::first()->user_id);
+        $this->say('hi', phone: '263779999999');
+        $user = User::where('phone', '263779999999')->firstOrFail();
+        $this->assertSame('General', $user->role_label);
+        $this->assertSame($user->id, WhatsappSession::where('phone', '263779999999')->first()->user_id);
+        $this->assertSame('idle', WhatsappSession::where('phone', '263779999999')->first()->state);
+        $this->assertDatabaseCount('login_codes', 0);
     }
 
-    public function test_link_with_just_an_email_when_codes_are_off(): void
+    public function test_known_numbers_keep_their_account(): void
     {
-        config(['ideas.require_code' => false]);
-        $this->say('hi');
-        $this->say('someone.new@example.com');
-        $user = User::where('email', 'someone.new@example.com')->firstOrFail();
-        $this->assertSame($this->phone, $user->phone);
-        $this->assertSame($user->id, WhatsappSession::first()->user_id);
-        $this->assertSame('idle', WhatsappSession::first()->state);
+        $this->link();
+        $this->assertSame(User::where('email', 'tinashe.moyo@zb.co.zw')->first()->id, WhatsappSession::first()->user_id);
+    }
+
+    public function test_web_command_sends_a_one_use_sign_in_link(): void
+    {
+        $this->link();
+        $this->partialMock(\App\Services\WhatsappClient::class, fn ($m) => $m->shouldReceive('text')->once()->withArgs(fn ($phone, $body) => str_contains($body, '/wa-login/')));
+        $this->say('web');
+    }
+
+    public function test_stop_turns_notifications_off(): void
+    {
+        $this->link();
+        $user = User::where('email', 'tinashe.moyo@zb.co.zw')->first();
+        $this->say('stop');
+        $this->assertFalse($user->fresh()->whatsapp_opt_in);
     }
 
     public function test_post_an_idea_by_chat(): void
@@ -134,29 +136,6 @@ class WhatsappBotTest extends TestCase
         $this->assertSame($exec->id, $idea->approved_by);
         $this->assertSame('Worth a pilot.', $idea->approval_note);
         $this->assertDatabaseHas('activities', ['user_id' => $idea->user_id, 'type' => 'approval']);
-    }
-
-    public function test_stop_and_unlink(): void
-    {
-        $this->link();
-        $user = User::where('email', 'tinashe.moyo@zb.co.zw')->first();
-        $this->say('stop');
-        $this->assertFalse($user->fresh()->whatsapp_opt_in);
-        $this->say('unlink');
-        $this->assertNull($user->fresh()->phone);
-        $this->assertNull(WhatsappSession::first()->user_id);
-    }
-
-    public function test_lockout_after_too_many_wrong_codes(): void
-    {
-        $this->say('hi');
-        $this->say('tinashe.moyo@zb.co.zw');
-        foreach (range(1, 5) as $i) {
-            $this->say('11111'.$i);
-        }
-        $this->assertNotNull(WhatsappSession::first()->locked_until);
-        $this->say('hi');
-        $this->assertNull(WhatsappSession::first()->user_id);
     }
 
     public function test_duplicate_deliveries_are_ignored(): void

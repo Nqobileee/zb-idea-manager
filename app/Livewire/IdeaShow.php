@@ -27,6 +27,7 @@ class IdeaShow extends Component
 
     public function mount(Idea $idea): void
     {
+        abort_unless($idea->isVisibleTo(auth()->user()), 404);
         $this->idea = $idea;
         $this->status = $idea->status;
     }
@@ -72,7 +73,7 @@ class IdeaShow extends Component
 
     public function render()
     {
-        $idea = Idea::feed()->with(['comments.author', 'approver'])->findOrFail($this->idea->id);
+        $idea = Idea::feed()->visibleTo(auth()->user())->with(['comments.author', 'approver'])->findOrFail($this->idea->id);
 
         return view('livewire.idea-show', ['idea' => $idea, 'me' => auth()->user()])->title($idea->title);
     }

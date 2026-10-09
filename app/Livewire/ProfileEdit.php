@@ -2,7 +2,6 @@
 
 namespace App\Livewire;
 
-use App\Services\AuthCodes;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;

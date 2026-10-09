@@ -32,7 +32,7 @@ class ChallengeShow extends Component
     public function render()
     {
         return view('livewire.challenge-show', [
-            'ideas' => Idea::feed()->where('challenge_id', $this->challenge->id)->latest()->get(),
+            'ideas' => Idea::feed()->visibleTo(auth()->user())->where('challenge_id', $this->challenge->id)->latest()->get(),
             'me' => auth()->user(),
         ]);
     }

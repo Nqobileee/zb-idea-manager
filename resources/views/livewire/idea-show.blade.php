@@ -7,7 +7,7 @@
 @endphp
 <div class="mx-auto max-w-[700px]">
     <div class="mb-3 flex flex-wrap items-center gap-2.5">
-        <x-stage :status="$idea->status" />
+        <x-stage :status="$idea->status" />@if (\App\Models\Idea::hasVisibility())<span class="chip chip-ghost">{{ $idea->is_public ? "Public" : "Private" }}</span>@endif
         <span class="font-mono text-xs text-muted">{{ $idea->code }}</span>
         @if ($idea->approved)<span class="chip"><x-icon name="check" :size="13" /> Approved by {{ $idea->approver?->name }}</span>@endif
         @if ($idea->source === 'whatsapp')<span class="chip chip-ghost">Posted from WhatsApp</span>@endif

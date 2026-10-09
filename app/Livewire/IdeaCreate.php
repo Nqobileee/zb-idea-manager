@@ -28,6 +28,8 @@ class IdeaCreate extends Component
 
     public string $status = 'Idea';
 
+    public string $visibility = 'private';
+
     #[Url]
     public ?int $challenge = null;
 
@@ -44,6 +46,7 @@ class IdeaCreate extends Component
             $this->summary = $idea->summary;
             $this->body = $idea->body === $idea->summary ? '' : $idea->body;
             $this->status = $idea->status;
+            $this->visibility = $idea->is_public ? 'public' : 'private';
             $this->challenge = $idea->challenge_id;
         }
     }
@@ -60,6 +63,7 @@ class IdeaCreate extends Component
             'summary' => 'required|string|max:400',
             'body' => 'nullable|string|max:10000',
             'status' => 'required|in:'.implode(',', Idea::STATUSES),
+            'visibility' => 'required|in:private,public',
             'challenge' => 'nullable|exists:challenges,id',
             'docs.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,csv,txt',
             'images.*' => 'image|max:5120',
@@ -83,7 +87,7 @@ class IdeaCreate extends Component
         $this->validate();
         $data = [
             'title' => $this->title, 'summary' => $this->summary, 'body' => $this->body,
-            'status' => $this->status, 'challenge_id' => $this->challenge,
+            'status' => $this->status, 'challenge_id' => $this->challenge, 'visibility' => $this->visibility,
         ];
         $idea = $this->ideaId
             ? $actions->update(Idea::findOrFail($this->ideaId), auth()->user(), $data)

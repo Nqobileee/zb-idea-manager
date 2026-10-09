@@ -34,7 +34,7 @@ class Pipeline extends Component
     /** Move a project to another stage (drag and drop, or the "Move to" menu). */
     public function move(int $ideaId, string $stage, IdeaActions $actions): void
     {
-        $idea = Idea::with('members')->findOrFail($ideaId);
+        $idea = Idea::with('members')->visibleTo(auth()->user())->findOrFail($ideaId);
         if ($stage === '' || $idea->status === $stage) {
             return;
         }
@@ -50,6 +50,7 @@ class Pipeline extends Component
         }
 
         $q = Idea::query()
+            ->visibleTo($me)
             ->with(['author', 'challenge', 'members'])
             ->withCount(['comments', 'tasks as open_tasks_count' => fn ($t) => $t->where('done', false), 'updates'])
             ->latest('updated_at');
