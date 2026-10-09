@@ -70,3 +70,28 @@ Ideas are resolved with the same visibility rules as the web app: executives see
 - **Identity.** Accounts are found by the WhatsApp number Meta verified. An email typed in chat can never take over an existing account: `/link` and `/account/register` refuse an email that already exists.
 - **Not built.** There is no "forgot password" page yet, so wrong-password replies link to the web sign-in page.
 - **Migrations to run:** `wa_greeted_on` on users (`php artisan migrate --force`). Until it runs, the greeting is empty.
+
+## Workflow change: the Executive admin code step (v3)
+
+Paste this to whoever edits the Zernio workflow. The real code is **not** written here; it lives only in `IDEAS_EXECUTIVE_CODE` on the server, and whoever sets it shares it with executives directly.
+
+After the person chooses **Executive admin** as their role:
+
+1. Ask: `Please send the executive access code.`
+2. Save the reply in the variable `regExecCode`.
+3. Call `POST /api/zernio/account/register` with the usual fields plus `regExecCode`:
+   `regName`, `regEmail`, `regPassword`, `regRole` (`Executive admin`), `regExecCode`, and the contact's phone.
+4. Read the reply:
+
+| Reply | What the bot does |
+|---|---|
+| `ok: true`, `role: executive` | Send `message` as is. The person is an Executive admin. |
+| `ok: false`, `code_required: true` | Send `message` (for example "That executive access code is not right."), ask for the code again, and call register again. |
+| `ok: false`, `locked: true` | Send `message`. Five wrong codes lock that email and number for 15 minutes. Offer **General Member** instead. |
+| `ok: false` (anything else) | Send `message` and go back to the email question. |
+
+5. Clear `regPassword` and `regExecCode` straight after the call so they are not sent anywhere else.
+
+If `IDEAS_EXECUTIVE_CODE` is empty on the server, Executive admin registration is closed: the reply is `ok: false` without `code_required`, and the bot should offer **General Member**.
+
+**Sending the secret headers.** Every Zernio node needs the header `X-Zernio-Secret` with the value of `ZERNIO_SECRET` from the server. Keep both values in Zernio's secret or variable store, not in this file or in chat.
