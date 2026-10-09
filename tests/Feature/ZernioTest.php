@@ -79,6 +79,7 @@ class ZernioTest extends TestCase
         $draft = $this->as_($u, ['ideaTitle' => 'Queue tickets', 'ideaSummary' => 'Skip the line.', 'ideaDetails' => 'More.', 'ideaChallengeRef' => 'id:'.$ch->id, 'ideaVisibility' => 'Public']);
 
         $this->call_('/ideas/preview', $draft)->assertJson(['ok' => true])->assertSee('Visibility: Public');
+        $this->call_('/ideas/preview', $draft)->assertSee('Details')->assertSee('More.');
         $this->call_('/ideas/preview', ['ideaTitle' => str_repeat('x', 91)] + $draft)->assertJson(['ok' => false]);
 
         $this->call_('/ideas', $draft)->assertOk()->assertJson(['ok' => true]);

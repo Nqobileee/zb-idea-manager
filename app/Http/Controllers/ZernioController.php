@@ -73,7 +73,7 @@ class ZernioController extends Controller
 
     private function reply(string $message, array $extra = [], bool $ok = true): JsonResponse
     {
-        return response()->json(['ok' => $ok, 'message' => Str::limit($message, 3990, "\n…")] + $extra);
+        return response()->json(['ok' => $ok, 'message' => Str::limit($message, 4090, "\n…")] + $extra);
     }
 
     private function fail(string $message, int $status = 200): JsonResponse
@@ -250,10 +250,10 @@ class ZernioController extends Controller
     /** Head + body + link as one message under WhatsApp's limit. The body is trimmed so the link is always the last line. */
     private function withLink(string $head, string $body, string $link): string
     {
-        $room = 3900 - mb_strlen($head) - mb_strlen($link) - 2;
+        $room = 4000 - mb_strlen($head) - mb_strlen($link) - 2;
         $body = trim($body);
         if (mb_strlen($body) > $room) {
-            $body = rtrim(mb_substr($body, 0, max(0, $room - 1))).'…';
+            $body = rtrim(mb_substr($body, 0, max(0, $room - 40))).'… (the rest is on the web)';
         }
 
         return $head.$body."\n\n".$link;
@@ -323,7 +323,9 @@ class ZernioController extends Controller
         }
         $ch = $d['challenge_id'] ? Challenge::find($d['challenge_id'])?->title : 'None';
 
-        return $this->reply("Ready to post?\n\n{$d['title']}\n{$d['summary']}\nChallenge: {$ch}\nVisibility: ".ucfirst($d['visibility'])."\n\nPhotos and documents can be added on the web app.");
+        $details = $d['body'] !== $d['summary'] ? "\n\nDetails\n".Str::limit($d['body'], 2500) : '';
+
+        return $this->reply("Ready to post?\n\n{$d['title']}\n\nSummary\n{$d['summary']}{$details}\n\nChallenge: {$ch}\nVisibility: ".ucfirst($d['visibility'])."\n\nPhotos and documents can be added on the web app.");
     }
 
     public function createIdea(Request $r): JsonResponse
@@ -405,8 +407,15 @@ class ZernioController extends Controller
         $score = $this->ranking->rank(null)->first(fn ($x) => $x['idea']->id === $idea->id)['total'] ?? null;
         $head = "{$idea->code} {$idea->title}\nBy {$idea->author->name} · {$idea->status} · ".($idea->is_public ? 'Public' : 'Private')
             ."\n{$idea->likers_count} likes · {$idea->comments_count} comments".($score !== null ? " · Score {$score}/100" : '')
-            .($idea->challenge ? "\nChallenge: {$idea->challenge->title}" : '')."\n\nSummary\n{$idea->summary}\n\nDetails\n";
-        $body = $idea->body === $idea->summary ? '' : (string) $idea->body;
+            .($idea->challenge ? "\nChallenge: {$idea->challenge->title}" : '');
+        // an idea posted without separate details has the summary as its body: show it once, as the full text
+        if ($idea->body === $idea->summary || trim((string) $idea->body) === '') {
+            $head .= "\n\n";
+            $body = (string) $idea->summary;
+        } else {
+            $head .= "\n\nSummary\n{$idea->summary}\n\nDetails\n";
+            $body = (string) $idea->body;
+        }
 
         return $this->reply($this->withLink($head, $body, 'View on the web: '.route('ideas.show', $idea)), ['idea_id' => $idea->id, 'approved' => (bool) $idea->approved, 'is_executive' => (bool) $u->is_admin]);
     }
