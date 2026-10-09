@@ -308,4 +308,42 @@ class ZernioTest extends TestCase
         $this->call_('/account/register', $req + ['regExecCode' => 'ZB-EXEC-2026'])->assertJson(['ok' => false, 'locked' => true]);
         $this->assertNull(User::where('email', 'guesser@example.com')->first());
     }
+
+    public function test_switch_code_unlinks_the_number_so_another_account_can_sign_in(): void
+    {
+        config(['ideas.switch_code' => 'SWITCH-1234']);
+        $a = User::where('is_admin', false)->firstOrFail();
+        $b = User::where('is_admin', true)->firstOrFail();
+        $a->update(['phone' => '263779100100', 'password' => \Illuminate\Support\Facades\Hash::make('pass-a-1234')]);
+        $b->update(['phone' => null, 'password' => \Illuminate\Support\Facades\Hash::make('pass-b-1234')]);
+        $contact = ['contact' => ['phone' => '263779100100']];
+
+        $this->call_('/account/switch', $contact + ['switchCode' => 'wrong'])->assertJson(['ok' => false]);
+        $this->assertSame('263779100100', $a->fresh()->phone);
+
+        $this->call_('/account/switch', $contact + ['switchCode' => ' switch-1234 '])->assertJson(['ok' => true, 'restart' => true, 'was_signed_in' => true]);
+        $this->assertNull($a->fresh()->phone);
+
+        $this->call_('/account/login', $contact + ['regEmail' => $b->email, 'regPassword' => 'pass-b-1234'])->assertJson(['ok' => true, 'role' => 'executive']);
+        $this->assertSame('263779100100', $b->fresh()->phone);
+        $this->assertNull($a->fresh()->phone);
+    }
+
+    public function test_signing_in_to_an_account_moves_the_number_even_from_another_phone(): void
+    {
+        $u = User::where('is_admin', false)->firstOrFail();
+        $u->update(['phone' => '263779200001', 'password' => \Illuminate\Support\Facades\Hash::make('move-pass-1')]);
+        $this->call_('/account/login', ['regEmail' => $u->email, 'regPassword' => 'move-pass-1', 'contact' => ['phone' => '263779200002']])->assertJson(['ok' => true]);
+        $this->assertSame('263779200002', $u->fresh()->phone);
+    }
+
+    public function test_switch_is_closed_without_a_code_and_locks_after_five_wrong_tries(): void
+    {
+        $this->call_('/account/switch', ['contact' => ['phone' => '263779300001'], 'switchCode' => 'x'])->assertJson(['ok' => false]);
+        config(['ideas.switch_code' => 'SWITCH-9999']);
+        foreach (range(1, 5) as $i) {
+            $this->call_('/account/switch', ['contact' => ['phone' => '263779300002'], 'switchCode' => "g{$i}"])->assertJson(['ok' => false]);
+        }
+        $this->call_('/account/switch', ['contact' => ['phone' => '263779300002'], 'switchCode' => 'SWITCH-9999'])->assertJson(['ok' => false, 'locked' => true]);
+    }
 }

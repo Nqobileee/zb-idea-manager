@@ -14,6 +14,10 @@ return [
         'member' => ['email' => env('IDEAS_DEMO_MEMBER_EMAIL'), 'password' => env('IDEAS_DEMO_MEMBER_PASSWORD')],
     ],
 
+    // Code a person types in WhatsApp to sign out of the account linked to their number and start sign-in again.
+    // Empty disables switching.
+    'switch_code' => env('IDEAS_SWITCH_CODE', ''),
+
     // Shared secret the Zernio chatbot sends in the X-Zernio-Secret header. Empty disables the /api/zernio endpoints.
     'zernio_secret' => env('ZERNIO_SECRET', ''),
 

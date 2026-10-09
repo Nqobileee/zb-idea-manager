@@ -95,3 +95,30 @@ After the person chooses **Executive admin** as their role:
 If `IDEAS_EXECUTIVE_CODE` is empty on the server, Executive admin registration is closed: the reply is `ok: false` without `code_required`, and the bot should offer **General Member**.
 
 **Sending the secret headers.** Every Zernio node needs the header `X-Zernio-Secret` with the value of `ZERNIO_SECRET` from the server. Keep both values in Zernio's secret or variable store, not in this file or in chat.
+
+## Update v4: switching accounts from WhatsApp
+
+A person who has several accounts (for example a General member and an Executive admin) can swap by typing the **switch code** in the chat. The code is in the server environment as `IDEAS_SWITCH_CODE`; it is not written in this file. Typing it signs the number out of the current account and restarts sign-in, so the next email and password decide which account the number belongs to.
+
+### Workflow change
+1. At the very top of the flow, before any other condition, check whether the incoming message equals the switch code (case does not matter). Easiest is to send every message that could be the code to the endpoint and branch on `restart`.
+2. Call `POST /api/zernio/account/switch` with the usual contact phone and the message text as `switchCode`.
+3. Read the reply:
+
+| Reply | What the bot does |
+|---|---|
+| `ok: true`, `restart: true` | Send `message` ("Switched … What is your email address?") and **jump to the email question** of the sign-in flow. Clear `regEmail`, `regPassword`, `regExecCode` and any other `reg*` variables. |
+| `ok: false` | The text was not the code. Carry on with the normal flow (do not show `message`). |
+| `ok: false`, `locked: true` | Five wrong tries from this number; ask them to wait 15 minutes. |
+
+### What the server does
+- Compares the text with `IDEAS_SWITCH_CODE` (trimmed, not case sensitive). If the setting is empty, switching is off.
+- Removes the WhatsApp number from whichever account holds it. Nothing else about that account changes.
+- Five wrong codes from one number lock it for 15 minutes.
+
+### Signing in moves the number
+`/account/login` with a correct password now **always attaches the number to that account**, taking it off any other account. Before, it only attached to an account that had no number, which would have left an account with an older number unreachable. A wrong password changes nothing.
+
+### Notes
+- The code only signs *your own* number out. It cannot open anyone's account; the other account still needs its email and password.
+- Treat it like any shared code: give it only to people who need to switch, and change `IDEAS_SWITCH_CODE` if it leaks.

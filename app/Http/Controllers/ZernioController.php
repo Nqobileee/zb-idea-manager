@@ -464,12 +464,38 @@ class ZernioController extends Controller
         return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : null;
     }
 
-    /** Attach the WhatsApp number to an account that has none, unless another account already holds it. */
+    /** After a correct password, this WhatsApp number belongs to that account: it is taken off any other account first. */
     private function attachPhone(User $u, ?string $phone): void
     {
-        if ($phone && ! $u->phone && ! User::where('phone', $phone)->exists()) {
+        if ($phone && $u->phone !== $phone) {
+            User::where('phone', $phone)->where('id', '!=', $u->id)->update(['phone' => null]);
             $u->update(['phone' => $phone]);
         }
+    }
+
+    /** The person types the switch code in WhatsApp: unlink this number so sign-in starts again from the email question. */
+    public function accountSwitch(Request $r): JsonResponse
+    {
+        $secret = (string) config('ideas.switch_code');
+        $phone = $this->phone($r);
+        if ($secret === '' || ! $phone) {
+            return $this->fail('Switching accounts is not available.', $secret === '' ? 200 : 422);
+        }
+        $key = 'zernio-switch:'.$phone;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json(['ok' => false, 'locked' => true, 'message' => 'Too many tries. Please wait 15 minutes.']);
+        }
+        $given = trim((string) $this->input($r, 'switchCode', ''));
+        if ($given === '' || ! hash_equals(Str::lower($secret), Str::lower($given))) {
+            RateLimiter::hit($key, 900);
+
+            return $this->fail('That is not the switch code.');
+        }
+        RateLimiter::clear($key);
+        $was = User::where('phone', $phone)->first();
+        User::where('phone', $phone)->update(['phone' => null]);
+
+        return $this->reply('Switched'.($was ? " (you were signed in as {$was->first_name})" : '').'. Let us sign in again. What is your email address?', ['restart' => true, 'was_signed_in' => (bool) $was]);
     }
 
     public function accountCheck(Request $r): JsonResponse
