@@ -356,4 +356,21 @@ class ZernioTest extends TestCase
             ->assertJson(['ok' => true, 'must_change_password' => true])->assertSee('temporary password');
         $this->assertTrue($u->fresh()->must_change_password);
     }
+
+    public function test_sign_in_and_register_replies_carry_a_menu_text_so_the_next_message_is_never_empty(): void
+    {
+        $u = User::where('is_admin', false)->firstOrFail();
+        $u->update(['password' => \Illuminate\Support\Facades\Hash::make('menu-pass-12')]);
+        $body = ['regEmail' => $u->email, 'regPassword' => 'menu-pass-12', 'contact' => ['phone' => '263779500001']];
+
+        $first = $this->call_('/account/login', $body)->assertJson(['ok' => true, 'greeted_today' => false])->json();
+        $this->assertStringStartsWith('Good', $first['greeting']);
+        $this->assertSame($first['greeting'], $first['menu_text']);
+
+        $again = $this->call_('/account/login', $body)->assertJson(['greeted_today' => true, 'greeting' => ''])->json();
+        $this->assertSame('What would you like to do?', $again['menu_text']);
+
+        $reg = $this->call_('/account/register', ['regName' => 'Menu Person', 'regEmail' => 'menu.person@example.com', 'regPassword' => 'longenough1', 'regRole' => 'General Member', 'contact' => ['phone' => '263779500002']])->assertJson(['ok' => true])->json();
+        $this->assertNotSame('', $reg['menu_text']);
+    }
 }

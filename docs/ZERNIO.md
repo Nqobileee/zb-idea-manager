@@ -122,3 +122,9 @@ A person who has several accounts (for example a General member and an Executive
 ### Notes
 - The code only signs *your own* number out. It cannot open anyone's account; the other account still needs its email and password.
 - Treat it like any shared code: give it only to people who need to switch, and change `IDEAS_SWITCH_CODE` if it leaks.
+
+## Update v5: the first message after signing in or registering
+
+`/account/login` and `/account/register` now return the same `greeting` and `greeted_today` as `/link`, plus **`menu_text`**: the greeting on the first call of the day, otherwise "What would you like to do?". It is never empty.
+
+If the node after sign-in (for example `im_regdone`) fails with "Message text, attachment, or template is required", its text field points at a variable that is empty on this path. Point it at the login or register reply's `menu_text` (or `message`) instead of a variable that is only set by `/link`.

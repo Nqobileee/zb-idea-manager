@@ -164,6 +164,14 @@ class ZernioController extends Controller
         return $this->reply("Linked, {$user->first_name}.", ['user_id' => $user->id, 'first_name' => $user->first_name, 'is_executive' => (bool) $user->is_admin, 'greeting' => $greeting, 'greeted_today' => $greeted]);
     }
 
+    /** The greeting fields every sign-in style reply carries, with a plain fallback so the bot's menu text is never empty. */
+    private function greetingFields(User $u): array
+    {
+        [$greeting, $greeted] = $this->greeting($u);
+
+        return ['greeting' => $greeting, 'greeted_today' => $greeted, 'menu_text' => $greeting !== '' ? $greeting : 'What would you like to do?'];
+    }
+
     /** A time-aware greeting on the first call of the day (Africa/Harare), nothing after that. Returns [text, alreadyGreeted]. */
     private function greeting(User $u): array
     {
@@ -535,7 +543,7 @@ class ZernioController extends Controller
             $user->forceFill(['must_change_password' => true])->save();
         }
 
-        return $this->reply("You are signed in, {$user->first_name}.".($temporary ? ' That is a temporary password: please choose your own when you sign in at '.route('login').'.' : ''), ['full_name' => $user->name, 'first_name' => $user->first_name, 'role' => $user->is_admin ? 'executive' : 'general', 'user_id' => $user->id, 'must_change_password' => $temporary]);
+        return $this->reply("You are signed in, {$user->first_name}.".($temporary ? ' That is a temporary password: please choose your own when you sign in at '.route('login').'.' : ''), ['full_name' => $user->name, 'first_name' => $user->first_name, 'role' => $user->is_admin ? 'executive' : 'general', 'user_id' => $user->id, 'must_change_password' => $temporary] + $this->greetingFields($user));
     }
 
     public function accountRegister(Request $r): JsonResponse
@@ -590,7 +598,7 @@ class ZernioController extends Controller
         ]);
 
         return $this->reply('You are registered as '.($wantsExecutive ? 'an Executive admin' : 'a General Member').'. Use this email and password to sign in at '.route('login').'.',
-            ['role' => $wantsExecutive ? 'executive' : 'general', 'user_id' => $user->id, 'first_name' => $user->first_name]);
+            ['role' => $wantsExecutive ? 'executive' : 'general', 'user_id' => $user->id, 'first_name' => $user->first_name] + $this->greetingFields($user));
     }
 
     // ---- pipeline and alerts -------------------------------------------------------------
