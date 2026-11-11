@@ -50,10 +50,10 @@ class Profile extends Component
         }
 
         $challenges = $this->tab === 'challenges'
-            ? Challenge::with('owner')->withCount('ideas')->where('user_id', $this->user->id)->orderBy('deadline')->get()
+            ? Challenge::with('owner')->withCount(['ideas' => fn ($i) => $i->visibleTo($me)])->where('user_id', $this->user->id)->orderBy('deadline')->get()
             : collect();
 
-        $q = Idea::feed();
+        $q = Idea::feed()->visibleTo($me);
         $ideas = $this->tab === 'challenges' ? collect() : ($this->tab === 'saved' && $mine
             ? $q->whereHas('savers', fn ($s) => $s->where('users.id', $me->id))->latest()->get()
             : $q->where('user_id', $this->user->id)->latest()->get());

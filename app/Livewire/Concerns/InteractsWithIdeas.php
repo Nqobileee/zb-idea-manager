@@ -10,18 +10,18 @@ trait InteractsWithIdeas
 {
     public function like(int $ideaId, IdeaActions $actions): void
     {
-        $actions->toggleLike(Idea::findOrFail($ideaId), auth()->user());
+        $actions->toggleLike(Idea::visibleTo(auth()->user())->findOrFail($ideaId), auth()->user());
     }
 
     public function save(int $ideaId, IdeaActions $actions): void
     {
-        $saved = $actions->toggleSave(Idea::findOrFail($ideaId), auth()->user());
+        $saved = $actions->toggleSave(Idea::visibleTo(auth()->user())->findOrFail($ideaId), auth()->user());
         $this->dispatch('toast', message: $saved ? 'Saved to your list' : 'Removed from saved');
     }
 
     public function share(int $ideaId): void
     {
-        $idea = Idea::findOrFail($ideaId);
+        $idea = Idea::visibleTo(auth()->user())->findOrFail($ideaId);
         $idea->increment('shares');
         $this->dispatch('share-idea', url: route('ideas.show', $idea), title: $idea->title);
         $this->dispatch('toast', message: 'Link ready to share');

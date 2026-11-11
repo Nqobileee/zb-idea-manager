@@ -34,6 +34,7 @@ class ProjectShow extends Component
 
     public function mount(Idea $idea): void
     {
+        abort_unless($idea->isVisibleTo(auth()->user()), 404);
         $this->idea = $idea;
         $this->notes[$idea->id] = (string) $idea->note;
     }

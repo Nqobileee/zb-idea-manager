@@ -11,6 +11,9 @@ class Outbox
     public static function send(string $type, string $to, string $from, string $subject, string $body): SentEmail
     {
         $row = SentEmail::create(compact('type', 'to', 'from', 'subject', 'body'));
+        if (\App\Services\PhoneAccounts::isPlaceholderEmail($to)) {
+            return $row; // account created from a WhatsApp number: there is no mailbox
+        }
 
         try {
             Mail::raw($body, function ($m) use ($to, $subject) {

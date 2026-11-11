@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Idea extends Model
 {
@@ -126,6 +127,43 @@ class Idea extends Model
     public function isSavedBy(?User $user): bool
     {
         return $user && $this->savers->contains($user->id);
+    }
+
+    /** False until the visibility migration has run; until then everything stays visible so the app keeps working. */
+    public static function hasVisibility(): bool
+    {
+        static $has;
+
+        return $has ??= Schema::hasColumn('ideas', 'visibility');
+    }
+
+    /** Executives see every idea. Everyone else sees public ideas, their own, and projects they are tagged on. */
+    public function scopeVisibleTo($query, ?User $user)
+    {
+        if (! static::hasVisibility() || $user?->is_admin) {
+            return $query;
+        }
+
+        return $query->where(function ($w) use ($user) {
+            $w->where('ideas.visibility', 'public');
+            if ($user) {
+                $w->orWhere('ideas.user_id', $user->id)->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id));
+            }
+        });
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        if (! static::hasVisibility() || $user?->is_admin || ($this->attributes['visibility'] ?? 'private') === 'public') {
+            return true;
+        }
+
+        return $user && ($user->id === $this->user_id || $this->members()->where('users.id', $user->id)->exists());
+    }
+
+    public function getIsPublicAttribute(): bool
+    {
+        return ($this->attributes['visibility'] ?? 'private') === 'public';
     }
 
     public function scopeFeed($query)

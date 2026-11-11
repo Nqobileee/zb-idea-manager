@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\WhatsappWebhookController;
+use App\Http\Controllers\ZernioController;
 use App\Livewire\ActivityFeed;
 use App\Livewire\Admin;
+use App\Livewire\Auth\ChangePassword;
+use App\Livewire\Super;
 use App\Livewire\Auth\Login;
 use App\Livewire\Challenges;
 use App\Livewire\ChallengeCreate;
@@ -23,8 +26,48 @@ use Illuminate\Support\Facades\Route;
 Route::get('/webhooks/whatsapp', [WhatsappWebhookController::class, 'verify']);
 Route::post('/webhooks/whatsapp', [WhatsappWebhookController::class, 'receive']);
 
+// Zernio chatbot backend: POST only, protected by the X-Zernio-Secret header
+Route::middleware('zernio')->prefix('api/zernio')->controller(ZernioController::class)->group(function () {
+    Route::post('/link', 'link');
+    Route::post('/web-link', 'webLink');
+    Route::post('/notifications', 'notifications');
+    Route::post('/notifications/list', 'notificationList');
+    Route::post('/pipeline', 'pipeline');
+    Route::post('/account/email', 'accountEmail');
+    Route::post('/account/code', 'accountCode');
+    Route::post('/account/check', 'accountCheck');
+    Route::post('/account/switch', 'accountSwitch');
+    Route::post('/account/switch/pick', 'accountSwitchPick');
+    Route::post('/account/login', 'accountLogin');
+    Route::post('/account/register', 'accountRegister');
+    Route::post('/challenges/options', 'challengeOptions');
+    Route::post('/challenges', 'challenges');
+    Route::post('/challenges/detail', 'challengeDetail');
+    Route::post('/challenges/ideas', 'challengeIdeas');
+    Route::post('/ideas/preview', 'previewIdea');
+    Route::post('/ideas', 'createIdea');
+    Route::post('/ideas/mine', 'myIdeas');
+    Route::post('/ideas/top', 'topIdeas');
+    Route::post('/ideas/top5', 'topFive');
+    Route::post('/ideas/detail', 'ideaDetail');
+    Route::post('/ideas/like', 'like');
+    Route::post('/ideas/approve', 'approve');
+    Route::post('/reports', 'reports');
+});
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', Login::class)->name('login');
+    // One-use sign-in link the WhatsApp bot sends when someone says "web".
+    Route::get('/wa-login/{token}', function (string $token, \App\Services\PhoneAccounts $accounts) {
+        $user = $accounts->redeem($token);
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'That link has expired. Send "web" to the WhatsApp number for a new one.');
+        }
+        Auth::login($user, remember: true);
+        session()->regenerate();
+
+        return redirect()->intended($user->is_admin ? route('admin.ranking') : route('home'));
+    })->name('wa.login');
 });
 
 Route::post('/logout', function () {
@@ -35,7 +78,21 @@ Route::post('/logout', function () {
     return redirect()->route('login');
 })->name('logout');
 
-Route::middleware('auth')->group(function () {
+// Super admin portal: separate sign-in, credentials from the environment
+Route::prefix('super')->group(function () {
+    Route::get('/login', Super\Login::class)->name('super.login');
+    Route::post('/logout', function () {
+        session()->forget('super_admin');
+        session()->regenerateToken();
+
+        return redirect()->route('super.login');
+    })->name('super.logout');
+    Route::middleware('super')->get('/', Super\Portal::class)->name('super.portal');
+});
+
+Route::middleware('auth')->get('/password/change', ChangePassword::class)->name('password.change');
+
+Route::middleware(['auth', 'fresh.password'])->group(function () {
     Route::get('/', Feed::class)->name('home');
     Route::get('/ideas/create', IdeaCreate::class)->name('ideas.create');
     Route::get('/ideas/{idea}/edit', IdeaCreate::class)->name('ideas.edit');

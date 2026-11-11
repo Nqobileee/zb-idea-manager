@@ -71,7 +71,7 @@ class Feed extends Component
     public function render(Ranking $ranking)
     {
         $me = auth()->user();
-        $q = Idea::feed();
+        $q = Idea::feed()->visibleTo($me);
         if ($this->statuses) {
             $q->whereIn('status', $this->statuses);
         }
@@ -90,7 +90,7 @@ class Feed extends Component
 
         // open challenges sit at the top of the feed, newest first, until their deadline passes
         $filtering = trim($this->search) !== '' || $this->statuses || $this->challenge !== 'all';
-        $openChallenges = $filtering ? collect() : Challenge::with('owner')->withCount('ideas')
+        $openChallenges = $filtering ? collect() : Challenge::with('owner')->withCount(['ideas' => fn ($i) => $i->visibleTo($me)])
             ->where(fn ($w) => $w->whereNull('deadline')->orWhere('deadline', '>=', now()->toDateString()))
             ->latest()->take(5)->get();
 

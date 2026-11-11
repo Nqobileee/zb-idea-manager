@@ -16,14 +16,18 @@ class WhatsappBot
 {
     public function __construct(
         private WhatsappClient $wa,
-        private AuthCodes $codes,
+        private PhoneAccounts $accounts,
         private IdeaActions $actions,
         private Ranking $ranking,
     ) {}
 
-    public function handle(string $phone, ?string $text, ?string $reply = null): void
+    public function handle(string $phone, ?string $text, ?string $reply = null, ?string $name = null): void
     {
         $s = WhatsappSession::firstOrCreate(['phone' => $phone]);
+        if (! $s->user_id) {
+            // The number was already verified by Smile Factory registration, so there is nothing to confirm here.
+            $s->user_id = $this->accounts->forPhone($phone, $name)->id;
+        }
         if ($s->last_inbound_at && $s->last_inbound_at->lt(now()->subMinutes(config('ideas.whatsapp.session_minutes'))) && $s->state !== 'idle') {
             $s->state = 'idle'; // draft is kept so the user can say "continue"
         }
@@ -33,28 +37,13 @@ class WhatsappBot
         $input = trim((string) ($reply ?? $text));
         $cmd = Str::lower($input);
 
-        if ($s->locked_until && $s->locked_until->isFuture()) {
-            $this->wa->text($phone, 'Too many wrong codes. Please try again in a few minutes.');
-
-            return;
-        }
-        if (in_array($cmd, ['cancel', 'menu', 'hi', 'hello', 'start'], true) && $s->state !== 'link_email' && $s->state !== 'link_code') {
+        if (in_array($cmd, ['cancel', 'menu', 'hi', 'hello', 'start'], true)) {
             $this->reset($s, keepDraft: $cmd !== 'cancel');
             if ($cmd === 'cancel') {
                 $s->update(['draft' => null]);
                 $this->wa->text($phone, 'Cancelled.');
             }
-            if (! $s->user_id) {
-                $this->startLink($s);
-
-                return;
-            }
             $this->menu($s);
-
-            return;
-        }
-        if (! $s->user_id) {
-            $this->linking($s, $input);
 
             return;
         }
@@ -72,15 +61,8 @@ class WhatsappBot
 
             return;
         }
-        if ($cmd === 'unlink') {
-            $user->update(['phone' => null]);
-            $s->update(['user_id' => null, 'state' => 'idle', 'draft' => null]);
-            $this->wa->text($phone, 'Your number is unlinked. Say "hi" to link it again.');
-
-            return;
-        }
         if ($cmd === 'help') {
-            $this->wa->text($phone, "You can say:\nNew idea, My ideas, Top ideas, Challenges".($user->is_admin ? ', Top 5' : '').", Stop, Unlink, Cancel.");
+            $this->wa->text($phone, "You can say:\nNew idea, My ideas, Top ideas, Challenges".($user->is_admin ? ', Top 5' : '').", Web, Stop, Cancel.");
 
             return;
         }
@@ -97,72 +79,6 @@ class WhatsappBot
         };
     }
 
-    // ---- linking ------------------------------------------------------------------
-
-    private function startLink(WhatsappSession $s): void
-    {
-        $s->update(['state' => 'link_email', 'pending_email' => null]);
-        $this->wa->text($s->phone, 'Welcome to ZB Ideas. Reply with your email address to link your account.');
-    }
-
-    private function linking(WhatsappSession $s, string $input): void
-    {
-        if ($s->state === 'link_code') {
-            if ($this->codes->check($s->pending_email, $input)) {
-                $this->completeLink($s, $s->pending_email);
-
-                return;
-            }
-            $fails = ($s->draft['fails'] ?? 0) + 1;
-            if ($fails >= config('ideas.max_code_attempts')) {
-                $s->update(['state' => 'idle', 'draft' => null, 'locked_until' => now()->addMinutes(config('ideas.lockout_minutes'))]);
-                $this->wa->text($s->phone, 'Too many wrong codes. Try again in 30 minutes.');
-
-                return;
-            }
-            $s->update(['draft' => ['fails' => $fails]]);
-            $this->wa->text($s->phone, 'That code did not work. Check the email and reply with the 6 digits.');
-
-            return;
-        }
-
-        if ($s->state === 'link_email') {
-            if (! $this->codes->isWorkEmail($input)) {
-                $this->wa->text($s->phone, config('ideas.email_domain') ? 'Please send your ZB work email, ending in @'.config('ideas.email_domain').'.' : 'Please send a valid email address.');
-
-                return;
-            }
-            if (! config('ideas.require_code')) {
-                $this->completeLink($s, strtolower($input));
-
-                return;
-            }
-            $this->codes->send($input);
-            $s->update(['state' => 'link_code', 'pending_email' => strtolower($input), 'draft' => null]);
-            $this->wa->text($s->phone, 'I sent a 6-digit code to that address. Reply with it here.');
-
-            return;
-        }
-        $this->startLink($s);
-    }
-
-    /** Attach this phone number to the account for $email (creating the account if needed). */
-    private function completeLink(WhatsappSession $s, string $email): void
-    {
-        $user = $this->codes->userFor($email);
-        if (! $user) {
-            $this->wa->text($s->phone, 'I could not find that account. Please contact the programme team.');
-            $s->update(['state' => 'idle']);
-
-            return;
-        }
-        User::where('phone', $s->phone)->where('id', '!=', $user->id)->update(['phone' => null]);
-        $user->update(['phone' => $s->phone]);
-        $s->update(['user_id' => $user->id, 'state' => 'idle', 'pending_email' => null]);
-        $this->wa->text($s->phone, "Linked, {$user->first_name}.");
-        $this->menu($s);
-    }
-
     // ---- menu and intents -----------------------------------------------------------
 
     private function menu(WhatsappSession $s): void
@@ -177,6 +93,7 @@ class WhatsappBot
             in_array($cmd, ['my ideas', 'my_ideas'], true) => 'my_ideas',
             in_array($cmd, ['top ideas', 'top_ideas'], true) => 'top_ideas',
             $cmd === 'challenges' => 'challenges',
+            in_array($cmd, ['web', 'website', 'login', 'open web'], true) => 'web',
             in_array($cmd, ['top 5', 'top5'], true) => 'top5',
             in_array($cmd, ['continue', 'continue my idea'], true) => 'continue',
             str_starts_with($cmd, 'like_') => $cmd,
@@ -206,11 +123,14 @@ class WhatsappBot
             case $id === 'challenges':
                 $this->challenges($s);
                 break;
+            case $id === 'web':
+                $this->wa->text($s->phone, "Open the web app (link works once, for 10 minutes):\n".$this->accounts->loginLink($user));
+                break;
             case $id === 'top5':
                 $this->top5($s, $user);
                 break;
             case str_starts_with($id, 'like_'):
-                $idea = Idea::find((int) substr($id, 5));
+                $idea = Idea::visibleTo($user)->find((int) substr($id, 5));
                 if ($idea) {
                     $liked = $this->actions->toggleLike($idea, $user);
                     $this->wa->text($s->phone, ($liked ? 'Liked ' : 'Like removed from ')."{$idea->code}.");

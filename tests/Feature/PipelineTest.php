@@ -31,7 +31,7 @@ class PipelineTest extends TestCase
         $this->exec = User::where('is_admin', true)->firstOrFail();
         $this->author = User::where('is_admin', false)->firstOrFail();
         $this->stranger = User::where('is_admin', false)->where('id', '!=', $this->author->id)->firstOrFail();
-        $this->idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $this->author->id, 'title' => 'Queue tickets', 'summary' => 's', 'body' => 'b', 'status' => 'Idea']);
+        $this->idea = Idea::create(['num' => Idea::nextNumber(), 'user_id' => $this->author->id, 'title' => 'Queue tickets', 'summary' => 's', 'body' => 'b', 'status' => 'Idea', 'visibility' => 'public']);
     }
 
     public function test_a_newly_posted_challenge_shows_at_the_top_of_the_home_feed(): void

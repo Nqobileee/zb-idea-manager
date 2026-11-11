@@ -22,7 +22,7 @@ class Challenges extends Component
     public function render()
     {
         $me = auth()->user();
-        $q = Challenge::with('owner')->withCount('ideas')->orderBy('deadline');
+        $q = Challenge::with('owner')->withCount(['ideas' => fn ($i) => $i->visibleTo($me)])->orderBy('deadline');
         if ($this->tab === 'mine' && $me->is_admin) {
             $q->where('user_id', $me->id);
         }

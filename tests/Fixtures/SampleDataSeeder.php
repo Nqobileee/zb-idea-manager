@@ -53,7 +53,7 @@ class SampleDataSeeder extends Seeder
                 'num' => $i['num'], 'user_id' => $users[$i['author']]->id,
                 'challenge_id' => $i['challenge'] ? $challenges[$i['challenge']]->id : null,
                 'title' => $i['title'], 'summary' => $i['summary'], 'body' => implode("\n\n", $i['body']),
-                'status' => $i['status'], 'shares' => $i['shares'],
+                'status' => $i['status'], 'visibility' => 'public', 'shares' => $i['shares'],
                 'approved' => $i['approved'],
                 'approved_by' => $i['approved'] ? $users[$i['approvedBy']]->id : null,
                 'approved_at' => $i['approved'] ? $at($i['approved_h']) : null,

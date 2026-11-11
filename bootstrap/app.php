@@ -14,12 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['admin' => EnsureExecutive::class]);
+        $middleware->alias(['admin' => EnsureExecutive::class, 'zernio' => \App\Http\Middleware\ZernioSecret::class, 'super' => \App\Http\Middleware\EnsureSuperAdmin::class, 'fresh.password' => \App\Http\Middleware\ForcePasswordChange::class]);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('home'));
-        $middleware->preventRequestForgery(except: ['webhooks/whatsapp']);
+        $middleware->preventRequestForgery(except: ['webhooks/whatsapp', 'api/zernio/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['regPassword', 'password']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

@@ -30,6 +30,7 @@ class WhatsappWebhookController extends Controller
                 foreach ($value['statuses'] ?? [] as $st) {
                     WhatsappMessage::where('wa_id', $st['id'] ?? null)->update(['status' => $st['status'] ?? null]);
                 }
+                $names = collect($value['contacts'] ?? [])->mapWithKeys(fn ($c) => [($c['wa_id'] ?? '') => $c['profile']['name'] ?? null]);
                 foreach ($value['messages'] ?? [] as $m) {
                     $phone = $m['from'] ?? null;
                     $id = $m['id'] ?? null;
@@ -44,7 +45,7 @@ class WhatsappWebhookController extends Controller
 
                     $text = $m['text']['body'] ?? null;
                     $reply = $m['interactive']['button_reply']['id'] ?? $m['interactive']['list_reply']['id'] ?? null;
-                    $bot->handle($phone, $text, $reply);
+                    $bot->handle($phone, $text, $reply, $names->get($phone));
                 }
             }
         }
