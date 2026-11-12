@@ -67,7 +67,7 @@
 <div class="md:grid md:grid-cols-[var(--side)_minmax(0,1fr)]">
 
     {{-- Desktop sidebar --}}
-    <aside class="sticky top-[72px] hidden h-[calc(100dvh-72px)] flex-col gap-1 overflow-y-auto px-4 pt-1 pb-5 md:flex [&>*]:shrink-0 [&_.count]:bg-alert" :class="collapsed && 'items-center !px-3'">
+    <aside class="sticky top-[72px] hidden h-[calc(100dvh-72px)] flex-col gap-1 overflow-y-auto px-4 pt-6 pb-5 md:flex [&>*]:shrink-0 [&_.count]:bg-alert" :class="collapsed && 'items-center !px-3'">
         @foreach (collect($nav)->reject(fn ($n) => $n[0] === 'activity') as [$key, $label, $icon, $url, $match])
             <a href="{{ $url }}" wire:navigate @class(['side', 'side-on' => in_array($route, $match, true)]) :class="collapsed && 'side-mini'" title="{{ $label }}">
                 <x-icon :name="$icon" :size="21" class="flex-none" /><span x-show="! collapsed" class="truncate">{{ $label }}</span>
