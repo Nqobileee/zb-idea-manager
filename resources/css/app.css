@@ -19,6 +19,7 @@
     --color-ink-2: #26302b;
     --color-muted: #56655d;
     --color-heart: #c0352b;
+    --color-alert: #e5484d;
     --color-verified: #1d9bf0;
 }
 
@@ -48,6 +49,9 @@
     .page-title { @apply font-display text-3xl font-bold tracking-tight md:text-4xl; }
     .nav { @apply flex w-full items-center gap-3 rounded-[10px] px-3 py-2 font-medium text-muted hover:bg-surface hover:text-ink; }
     .nav-on { @apply bg-tint font-semibold text-brand; }
+    .side { @apply flex h-12 w-full items-center gap-3.5 rounded-xl px-3.5 text-base text-ink-2 hover:bg-black/[.04] hover:text-ink; }
+    .side-on { @apply bg-tint font-semibold text-ink hover:bg-tint; }
+    .side-mini { @apply size-12 justify-center px-0; }
     .count { @apply ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white tabular-nums; }
     .act { @apply inline-flex h-9 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-semibold text-muted tabular-nums hover:bg-surface hover:text-ink; }
     .meta { @apply flex min-w-0 items-center gap-2 text-xs text-muted; }

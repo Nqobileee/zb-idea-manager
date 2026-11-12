@@ -74,6 +74,29 @@ class PipelineTest extends TestCase
         $page->assertSee('Queue tickets')->assertSee('Drag a card');
     }
 
+    public function test_every_view_renders_the_project(): void
+    {
+        $this->actingAs($this->author);
+        $this->idea->tasks()->create(['user_id' => $this->author->id, 'title' => 'Book the demo room', 'due_date' => now()->toDateString()]);
+        Livewire::test(Pipeline::class)->call('move', $this->idea->id, 'Prototype');
+
+        foreach (['board', 'table', 'list', 'projects', 'timeline'] as $view) {
+            Livewire::test(Pipeline::class)->set('view', $view)->assertOk()->assertSee('Queue tickets');
+        }
+        Livewire::test(Pipeline::class)->set('view', 'calendar')->assertOk()
+            ->assertSee('Book the demo room')->assertSee('Queue tickets → Prototype')
+            ->call('shiftMonth', 1)->assertSee(now()->startOfMonth()->addMonth()->format('F Y'));
+    }
+
+    public function test_table_sorts_by_a_column_and_flips_direction(): void
+    {
+        $this->actingAs($this->author);
+        Livewire::test(Pipeline::class)->set('view', 'table')
+            ->call('sortBy', 'title')->assertSet('sort', 'title')->assertSet('dir', 'asc')
+            ->call('sortBy', 'title')->assertSet('dir', 'desc')
+            ->call('sortBy', 'nonsense')->assertSet('sort', 'title');
+    }
+
     public function test_author_moves_a_project_and_the_move_is_recorded(): void
     {
         $this->actingAs($this->author);

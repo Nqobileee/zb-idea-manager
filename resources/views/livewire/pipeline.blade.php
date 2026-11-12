@@ -26,12 +26,237 @@
         </div>
     </div>
 
-    {{-- the two views --}}
-    <div class="mb-4 flex w-full max-w-sm rounded-full bg-surface p-1 sm:inline-flex sm:w-auto sm:max-w-none" role="tablist" aria-label="Pipeline view">
-        @foreach (['board' => ['Board', 'board'], 'projects' => ['Projects', 'file']] as $key => [$label, $icon])
-            <button role="tab" wire:click="$set('view','{{ $key }}')" aria-selected="{{ $view === $key ? 'true' : 'false' }}" @class(['inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold', 'bg-white text-brand shadow-sm' => $view === $key, 'text-muted' => $view !== $key])><x-icon :name="$icon" :size="14" /> {{ $label }}</button>
-        @endforeach
+    {{-- the views --}}
+    <div class="-mx-4 mb-4 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
+        <div class="inline-flex rounded-full bg-surface p-1" role="tablist" aria-label="Pipeline view">
+            @foreach (\App\Livewire\Pipeline::VIEWS as $key => [$label, $icon])
+                <button role="tab" wire:click="$set('view','{{ $key }}')" aria-selected="{{ $view === $key ? 'true' : 'false' }}" @class(['inline-flex flex-none items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold whitespace-nowrap', 'bg-white text-brand shadow-sm' => $view === $key, 'text-muted hover:text-ink' => $view !== $key])><x-icon :name="$icon" :size="14" /> {{ $label }}</button>
+            @endforeach
+        </div>
     </div>
+
+    {{-- ===================== TABLE ===================== --}}
+    @if ($view === 'table')
+        @php
+            $th = function (string $key, string $label, string $extra = '') use ($sort, $dir) {
+                $on = $sort === $key;
+                $arrow = $on ? ($dir === 'asc' ? '↑' : '↓') : '';
+                $aria = $on ? ($dir === 'asc' ? 'ascending' : 'descending') : 'none';
+                return '<th scope="col" aria-sort="'.$aria.'" class="px-3 py-3 font-semibold '.$extra.'"><button type="button" wire:click="sortBy(\''.$key.'\')" class="inline-flex items-center gap-1 whitespace-nowrap '.($on ? 'text-ink' : 'hover:text-ink').'">'.e($label).'<span class="w-2.5 text-brand">'.$arrow.'</span></button></th>';
+            };
+        @endphp
+        <div class="overflow-x-auto rounded-2xl border border-line bg-white">
+            <table class="w-full min-w-[980px] text-left text-sm">
+                <thead class="border-b border-line bg-surface text-[13px] text-muted">
+                    <tr>
+                        {!! $th('title', 'Project', 'pl-4') !!}
+                        {!! $th('status', 'Stage') !!}
+                        {!! $th('author', 'Owner') !!}
+                        {!! $th('challenge', 'Challenge') !!}
+                        <th scope="col" class="px-3 py-3 font-semibold">Team</th>
+                        {!! $th('pending', 'Pending', 'text-right') !!}
+                        {!! $th('comments', 'Comments', 'text-right') !!}
+                        {!! $th('created', 'Posted') !!}
+                        {!! $th('updated', 'Updated') !!}
+                        <th scope="col" class="px-3 py-3 pr-4 font-semibold"><span class="sr-only">Move</span></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-line">
+                    @forelse ($sorted as $idea)
+                        @php($can = $idea->canContribute($me))
+                        @php($k = $idea->stageIndex())
+                        <tr wire:key="t{{ $idea->id }}" class="align-middle hover:bg-surface/60">
+                            <td class="max-w-[320px] py-3 pr-3 pl-4">
+                                <a href="{{ route('projects.show', $idea) }}" wire:navigate class="block truncate font-semibold hover:text-brand" title="{{ $idea->title }}">{{ $idea->title }}</a>
+                                <span class="font-mono text-[11px] text-muted">{{ $idea->code }}</span>
+                            </td>
+                            <td class="px-3 py-3">
+                                <x-stage :status="$idea->status" />
+                                <span class="mt-1.5 flex w-20 gap-0.5" aria-label="Stage {{ $k + 1 }} of 5">@foreach (\App\Models\Idea::STATUSES as $n => $s)<span @class(['h-1 flex-1 rounded-full', 'bg-brand' => $n <= $k, 'bg-line' => $n > $k])></span>@endforeach</span>
+                            </td>
+                            <td class="px-3 py-3"><span class="flex items-center gap-2"><x-avatar :user="$idea->author" :size="24" /><span class="max-w-[140px] truncate">{{ $idea->author->name }}</span></span></td>
+                            <td class="max-w-[200px] px-3 py-3"><span class="block truncate text-ink-2" title="{{ $idea->challenge?->title }}">{{ $idea->challenge?->title ?? '—' }}</span></td>
+                            <td class="px-3 py-3">
+                                @if ($idea->members->isNotEmpty())
+                                    <span class="flex -space-x-1.5">@foreach ($idea->members->take(4) as $m)<x-avatar :user="$m" :size="24" class="ring-2 ring-white" />@endforeach @if ($idea->members->count() > 4)<span class="grid size-6 place-items-center rounded-full bg-surface text-[10px] font-bold text-muted ring-2 ring-white">+{{ $idea->members->count() - 4 }}</span>@endif</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            <td @class(['px-3 py-3 text-right tabular-nums', 'font-semibold text-[#8a5a00]' => $idea->open_tasks_count, 'text-muted' => ! $idea->open_tasks_count])>{{ $idea->open_tasks_count }}</td>
+                            <td class="px-3 py-3 text-right text-muted tabular-nums">{{ $idea->comments_count }}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-muted">{{ $idea->created_at->format('j M Y') }}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-muted" title="{{ $idea->updated_at->format('j M Y, H:i') }}">{{ $idea->updated_at->diffForHumans() }}</td>
+                            <td class="py-3 pr-4 pl-3 text-right">
+                                @if ($can)
+                                    <select wire:change="move({{ $idea->id }}, $event.target.value)" class="h-8 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-muted" aria-label="Move {{ $idea->title }} to another stage">
+                                        <option value="">Move to…</option>
+                                        @foreach (\App\Models\Idea::STATUSES as $s)@if ($s !== $idea->status)<option value="{{ $s }}">{{ $s }}</option>@endif @endforeach
+                                    </select>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="10" class="py-16 text-center text-muted"><b class="block text-ink">No projects here</b>Post an idea and it shows up in the pipeline.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <p class="hint mt-2">{{ $sorted->count() }} {{ \Illuminate\Support\Str::plural('project', $sorted->count()) }}. Click a heading to sort.</p>
+    @endif
+
+    {{-- ===================== LIST ===================== --}}
+    @if ($view === 'list')
+        <div class="space-y-3">
+            @foreach (\App\Models\Idea::STATUSES as $stage)
+                @php($rows = $sorted->where('status', $stage))
+                <section class="overflow-hidden rounded-2xl border border-line bg-white" x-data="{ open: {{ $rows->isNotEmpty() ? 'true' : 'false' }} }" wire:key="ls{{ $stage }}">
+                    <button type="button" class="flex w-full items-center gap-2.5 px-4 py-3 text-left hover:bg-surface/60" x-on:click="open = ! open" x-bind:aria-expanded="open">
+                        <x-icon name="back" :size="15" class="flex-none text-muted transition-transform" x-bind:class="open ? '-rotate-90' : 'rotate-180'" />
+                        <span class="size-2.5 flex-none rounded-full {{ $dot[$stage] }}"></span>
+                        <h2 class="font-display text-[15px] font-bold">{{ $stage }}</h2>
+                        <span class="rounded-full bg-surface px-2 py-0.5 text-xs font-semibold text-muted tabular-nums">{{ $rows->count() }}</span>
+                        <span class="hidden truncate text-[12.5px] text-muted sm:inline">{{ $hint[$stage] }}</span>
+                    </button>
+                    <ul x-show="open" x-collapse class="divide-y divide-line border-t border-line">
+                        @forelse ($rows as $idea)
+                            @php($can = $idea->canContribute($me))
+                            <li wire:key="l{{ $idea->id }}" class="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 hover:bg-surface/60">
+                                <a href="{{ route('projects.show', $idea) }}" wire:navigate class="flex min-w-0 flex-1 basis-60 items-center gap-2.5">
+                                    <x-avatar :user="$idea->author" :size="26" />
+                                    <span class="min-w-0"><b class="block truncate text-[14px] font-semibold hover:text-brand">{{ $idea->title }}</b><small class="block truncate text-xs text-muted">{{ $idea->author->name }}@if ($idea->challenge) · {{ $idea->challenge->title }}@endif</small></span>
+                                </a>
+                                <span class="flex items-center gap-3 text-[12px] text-muted">
+                                    @if ($idea->open_tasks_count)<span class="inline-flex items-center gap-1 font-semibold text-[#8a5a00]"><x-icon name="check" :size="12" /> {{ $idea->open_tasks_count }} pending</span>@endif
+                                    <span class="inline-flex items-center gap-1"><x-icon name="comment" :size="12" /> {{ $idea->comments_count }}</span>
+                                    @if ($idea->members->isNotEmpty())<span class="flex -space-x-1.5">@foreach ($idea->members->take(3) as $m)<x-avatar :user="$m" :size="20" class="ring-2 ring-white" />@endforeach</span>@endif
+                                    <span class="w-16 text-right whitespace-nowrap">{{ $idea->updated_at->diffForHumans(null, true, true) }}</span>
+                                </span>
+                                @if ($can)
+                                    <select wire:change="move({{ $idea->id }}, $event.target.value)" class="h-8 rounded-lg border border-line bg-white px-2 text-xs font-semibold text-muted" aria-label="Move {{ $idea->title }} to another stage">
+                                        <option value="">Move to…</option>
+                                        @foreach (\App\Models\Idea::STATUSES as $s)@if ($s !== $stage)<option value="{{ $s }}">{{ $s }}</option>@endif @endforeach
+                                    </select>
+                                @endif
+                            </li>
+                        @empty
+                            <li class="px-4 py-4 text-sm text-muted">Nothing in {{ $stage }} yet.</li>
+                        @endforelse
+                    </ul>
+                </section>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- ===================== CALENDAR ===================== --}}
+    @if ($view === 'calendar')
+        @php($today = now()->format('Y-m-d'))
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+            <h2 class="font-display text-xl font-bold tracking-tight">{{ $calendar['month']->format('F Y') }}</h2>
+            <div class="flex items-center gap-1">
+                <button wire:click="shiftMonth(-1)" class="iconbtn size-9 border border-line" aria-label="Previous month"><x-icon name="back" :size="16" /></button>
+                <button wire:click="thisMonth" class="btn btn-sm">Today</button>
+                <button wire:click="shiftMonth(1)" class="iconbtn size-9 border border-line" aria-label="Next month"><x-icon name="back" :size="16" class="rotate-180" /></button>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted md:ml-auto">
+                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-[#fbeed3] ring-1 ring-[#e9c97f]"></span>Pending due</span>
+                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-[#fde3e1] ring-1 ring-[#f0a19b]"></span>Overdue</span>
+                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-[#e0ebf8] ring-1 ring-[#9dbbe2]"></span>Stage move</span>
+                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-tint ring-1 ring-tint-2"></span>New idea</span>
+                <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-brand"></span>Challenge deadline</span>
+            </div>
+        </div>
+
+        {{-- month grid (tablet and up) --}}
+        <div class="hidden overflow-hidden rounded-2xl border border-line bg-white md:block">
+            <div class="grid grid-cols-7 border-b border-line bg-surface text-[12.5px] font-semibold text-muted">
+                @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $d)<div class="px-2.5 py-2">{{ $d }}</div>@endforeach
+            </div>
+            <div class="grid grid-cols-7">
+                @for ($d = $calendar['gridStart']; $d->lessThanOrEqualTo($calendar['gridEnd']); $d = $d->addDay())
+                    @php($key = $d->format('Y-m-d'))
+                    @php($events = $calendar['days']->get($key, collect()))
+                    @php($inMonth = $d->month === $calendar['month']->month)
+                    <div wire:key="cd{{ $key }}" @class(['min-h-[120px] border-b border-l border-line p-1.5 [&:nth-child(7n+1)]:border-l-0', 'bg-surface/50' => ! $inMonth]) x-data="{ all: false }">
+                        <div class="mb-1 flex items-center justify-between px-1">
+                            <span @class(['grid size-6 place-items-center rounded-full text-[12.5px] tabular-nums', 'bg-brand font-bold text-white' => $key === $today, 'font-semibold text-ink' => $key !== $today && $inMonth, 'text-muted/60' => ! $inMonth])>{{ $d->day }}</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            @foreach ($events as $n => $e)
+                                <div @if ($n >= 3) x-show="all" x-cloak @endif><x-pipeline-event :e="$e" /></div>
+                            @endforeach
+                            @if ($events->count() > 3)
+                                <button type="button" x-on:click="all = ! all" class="px-1.5 text-left text-[11.5px] font-semibold text-muted hover:text-ink" x-text="all ? 'Show less' : '+{{ $events->count() - 3 }} more'"></button>
+                            @endif
+                        </div>
+                    </div>
+                @endfor
+            </div>
+        </div>
+
+        {{-- agenda (phones) --}}
+        <div class="space-y-4 md:hidden">
+            @forelse ($calendar['days']->sortKeys() as $key => $events)
+                <section wire:key="ag{{ $key }}">
+                    <h3 @class(['mb-1.5 text-[13px] font-semibold', 'text-brand' => $key === $today, 'text-muted' => $key !== $today])>{{ \Carbon\CarbonImmutable::parse($key)->format('D j M') }}{{ $key === $today ? ' · Today' : '' }}</h3>
+                    <div class="flex flex-col gap-1.5">@foreach ($events as $e)<x-pipeline-event :e="$e" :wide="true" />@endforeach</div>
+                </section>
+            @empty
+            @endforelse
+        </div>
+        @if ($calendar['count'] === 0)
+            <p class="hint mt-3">Nothing scheduled in {{ $calendar['month']->format('F') }}. Pending items with a due date, stage moves, new ideas and challenge deadlines show up here.</p>
+        @endif
+    @endif
+
+    {{-- ===================== TIMELINE ===================== --}}
+    @if ($view === 'timeline')
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+            <div class="inline-flex rounded-full border border-line p-0.5" role="group" aria-label="Time range">
+                @foreach ([3 => '3 months', 6 => '6 months', 12 => '12 months'] as $n => $label)
+                    <button wire:click="$set('span', {{ $n }})" @class(['rounded-full px-3 py-1 text-[12.5px] font-semibold', 'bg-tint text-brand' => $span === $n, 'text-muted hover:text-ink' => $span !== $n])>{{ $label }}</button>
+                @endforeach
+            </div>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted md:ml-auto">
+                @foreach (\App\Models\Idea::STATUSES as $s)<span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-4 rounded-sm {{ $dot[$s] }}"></span>{{ $s }}</span>@endforeach
+                <span class="inline-flex items-center gap-1.5"><span class="h-3 w-0.5 bg-heart"></span>Today</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto rounded-2xl border border-line bg-white">
+            <div class="min-w-[860px]">
+                <div class="grid grid-cols-[260px_1fr] border-b border-line bg-surface text-[12.5px] font-semibold text-muted">
+                    <div class="px-4 py-2.5">Project</div>
+                    <div class="relative">
+                        @foreach ($timeline['months'] as $m)<span class="absolute top-2.5 pl-2 whitespace-nowrap" style="left: {{ $m['left'] }}%">{{ $m['label'] }}</span>@endforeach
+                    </div>
+                </div>
+                <div class="relative">
+                    {{-- month lines and today, drawn once behind all rows --}}
+                    <div class="pointer-events-none absolute inset-y-0 right-0 left-[260px]">
+                        @foreach ($timeline['months'] as $m)<span class="absolute inset-y-0 w-px bg-line" style="left: {{ $m['left'] }}%"></span>@endforeach
+                        <span class="absolute inset-y-0 z-10 w-0.5 bg-heart/80" style="left: {{ $timeline['today'] }}%"></span>
+                    </div>
+                    @forelse ($timeline['rows'] as $row)
+                        @php($idea = $row['idea'])
+                        <div wire:key="tl{{ $idea->id }}" class="grid grid-cols-[260px_1fr] border-b border-line last:border-b-0 hover:bg-surface/40">
+                            <a href="{{ route('projects.show', $idea) }}" wire:navigate class="flex min-w-0 items-center gap-2 px-4 py-2.5">
+                                <span class="min-w-0"><b class="block truncate text-[13.5px] font-semibold hover:text-brand" title="{{ $idea->title }}">{{ $idea->title }}</b><small class="block truncate text-[11.5px] text-muted">{{ $idea->author->name }} · since {{ $idea->created_at->format('j M Y') }}</small></span>
+                            </a>
+                            <div class="relative">
+                                @if ($row['clipped'])<span class="absolute top-1/2 left-0.5 z-[1] -translate-y-1/2 text-[11px] text-muted" title="Started before this range">‹</span>@endif
+                                @foreach ($row['bars'] as $b)
+                                    <span class="absolute top-1/2 h-5 -translate-y-1/2 rounded-[5px] ring-1 ring-white {{ $dot[$b['stage']] }}" style="left: {{ $b['left'] }}%; width: {{ $b['width'] }}%" title="{{ $b['title'] }}"></span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @empty
+                        <div class="py-16 text-center text-muted"><b class="block text-ink">No projects here</b>Post an idea and it shows up in the pipeline.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+        <p class="hint mt-2">Each bar shows how long a project spent in each stage. Hover a bar for the dates.</p>
+    @endif
 
     {{-- ===================== BOARD ===================== --}}
     @if ($view === 'board')
