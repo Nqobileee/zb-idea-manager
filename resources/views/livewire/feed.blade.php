@@ -1,7 +1,6 @@
-<div class="mx-auto max-w-[700px]">
-    <div class="hidden items-end justify-between pb-4 md:flex">
-        <div><div class="eyebrow">Ideas</div><h1 class="page-title">What colleagues are building</h1></div>
-        <button wire:click="toggleSearch" class="iconbtn" aria-label="Search"><x-icon name="search" :size="21" /></button>
+<div class="mx-auto max-w-[1100px]">
+    <div class="hidden pb-4 md:block">
+        <div class="eyebrow">Ideas</div><h1 class="page-title">What colleagues are building</h1>
     </div>
 
     @if ($showSearch || $search !== '')

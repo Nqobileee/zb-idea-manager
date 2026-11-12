@@ -45,7 +45,7 @@
         </label>
     </form>
     <div class="flex flex-none items-center gap-3">
-        <a href="{{ route('ideas.create') }}" wire:navigate class="btn btn-primary h-11 px-5 text-[15px]"><x-icon name="plus" :size="17" /> Post an idea</a>
+        <a href="{{ route('ideas.create') }}" wire:navigate class="btn btn-primary"><x-icon name="plus" :size="16" /> Post an idea</a>
         <a href="{{ route('activity') }}" wire:navigate class="iconbtn relative size-11 [&_.count]:bg-alert" aria-label="Activity">
             <x-icon name="bell" :size="22" />
             <livewire:nav-badge kind="activity" :float="true" key="top-activity" />
