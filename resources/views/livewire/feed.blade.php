@@ -15,28 +15,31 @@
         @foreach (['foryou' => 'For you', 'latest' => 'Latest'] as $key => $label)
             <button wire:click="$set('tab','{{ $key }}')" @class(['relative px-4 py-3 text-sm font-semibold', 'text-brand after:absolute after:inset-x-3 after:bottom-[-1px] after:h-0.5 after:rounded after:bg-brand' => $tab === $key, 'text-muted' => $tab !== $key])>{{ $label }}</button>
         @endforeach
-        <button wire:click="toggleFilter" class="btn btn-sm ml-auto hidden md:inline-flex"><x-icon name="filter" :size="16" /> Filter @if (count($statuses) || $challenge !== 'all')<span class="count !ml-0">{{ count($statuses) + ($challenge !== 'all' ? 1 : 0) }}</span>@endif</button>
-    </div>
-
-    @if ($showFilter)
-        <div class="my-2 space-y-2 rounded-2xl border border-line p-2.5">
-            <div class="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none]" role="group" aria-label="Stage">
+        {{-- Filter dropdown. The phone top bar opens the same menu through the toggle-filter event. --}}
+        <div class="relative ml-auto" x-data="{ open: $wire.entangle('showFilter') }" x-on:keydown.escape.window="open = false">
+            <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="true" class="btn btn-sm hidden md:inline-flex"><x-icon name="filter" :size="16" /> Filter @if (count($statuses) || $challenge !== 'all')<span class="count !ml-0">{{ count($statuses) + ($challenge !== 'all' ? 1 : 0) }}</span>@endif</button>
+            <div x-cloak x-show="open" x-transition.origin.top.right x-on:click.outside="open = false"
+                 class="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-white p-2 shadow-xl" role="menu" aria-label="Filter ideas">
+                <div class="px-2 pt-1 pb-1.5 text-xs font-semibold text-muted">Stage</div>
                 @foreach (\App\Models\Idea::STATUSES as $s)
-                    <label @class(['flex-none cursor-pointer rounded-full px-2.5 py-1 text-xs font-bold ring-offset-1', \App\Models\Idea::stageClasses($s), 'ring-2 ring-brand' => in_array($s, $statuses), 'opacity-60 hover:opacity-100' => ! in_array($s, $statuses)])>
-                        <input type="checkbox" class="sr-only" value="{{ $s }}" wire:model.live="statuses">{{ $s }}</label>
+                    <label class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-surface">
+                        <input type="checkbox" value="{{ $s }}" wire:model.live="statuses" class="size-4 accent-[#049016]">
+                        <span @class(['tag', \App\Models\Idea::stageClasses($s)])>{{ $s }}</span>
+                    </label>
                 @endforeach
-            </div>
-            <div class="flex items-center gap-2">
-                <label class="sr-only" for="chf">Challenge</label>
-                <select id="chf" wire:model.live="challenge" class="inp !h-9 min-w-0 grow !rounded-full !px-3 text-[13px]">
-                    <option value="all">All challenges</option>
-                    @foreach ($challenges as $c)<option value="{{ $c->id }}">{{ $c->title }}</option>@endforeach
-                </select>
-                <button wire:click="clearFilters" class="btn btn-sm flex-none">Clear</button>
-                <button wire:click="toggleFilter" class="btn btn-sm btn-primary flex-none">Done</button>
+                <label for="chf" class="mt-1 block border-t border-line px-2 pt-2.5 pb-1.5 text-xs font-semibold text-muted">Challenge</label>
+                <div class="px-2 pb-1">
+                    <select id="chf" wire:model.live="challenge" class="inp !h-9 !rounded-lg !px-2.5 text-[13px]">
+                        <option value="all">All challenges</option>
+                        @foreach ($challenges as $c)<option value="{{ $c->id }}">{{ $c->title }}</option>@endforeach
+                    </select>
+                </div>
+                @if (count($statuses) || $challenge !== 'all')
+                    <button type="button" wire:click="clearFilters" class="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-brand hover:bg-surface">Clear filters</button>
+                @endif
             </div>
         </div>
-    @endif
+    </div>
 
     @if ($openChallenges->isNotEmpty())
         <section class="-mx-4 mt-4 border-b border-line pb-4 md:mx-0" aria-label="Open challenges">
