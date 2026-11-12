@@ -24,8 +24,10 @@ class Ranking extends Component
 
     public function approve(int $ideaId, IdeaActions $actions): void
     {
-        $actions->approve(Idea::findOrFail($ideaId), auth()->user());
-        $this->dispatch('toast', message: 'Approved. The author has been emailed.');
+        $result = $actions->approve(Idea::findOrFail($ideaId), auth()->user());
+        $this->dispatch('toast', message: $result['accepted']
+            ? 'Approved. The author has been emailed.'
+            : "Your approval is recorded ({$result['votes']} of {$result['needed']}). The idea is accepted when {$result['needed']} executives approve it.");
     }
 
     public function digest(IdeaActions $actions): void

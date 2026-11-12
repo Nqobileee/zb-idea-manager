@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class Idea extends Model
@@ -27,6 +28,28 @@ class Idea extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    /** Executives who have approved this idea so far. */
+    public function approvals(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'idea_approvals')->withPivot('note')->withTimestamps();
+    }
+
+    /** How many executives must approve before the idea counts as accepted. One unless its challenge asks for a group decision. */
+    public function approvalsNeeded(): int
+    {
+        if (! Team::ready() || ! $this->challenge_id) {
+            return 1;
+        }
+        $executives = max(1, User::where('is_admin', true)->count());
+
+        return max(1, min((int) $this->challenge?->approvals_required, $executives));
     }
 
     public function challenge(): BelongsTo
@@ -73,7 +96,13 @@ class Idea extends Model
     /** The author and executives manage the post; tagged members also work on the project itself. */
     public function canContribute(?User $user): bool
     {
-        return $user && ($this->canBeManagedBy($user) || $this->members->contains('id', $user->id));
+        return $user && ($this->canBeManagedBy($user) || $this->members->contains('id', $user->id) || $this->isOnTeam($user));
+    }
+
+    /** True when the idea was put forward by a team this user belongs to. */
+    public function isOnTeam(?User $user): bool
+    {
+        return $user && Team::ready() && $this->team_id && DB::table('team_user')->where(['team_id' => $this->team_id, 'user_id' => $user->id])->exists();
     }
 
     public function updates(): HasMany
@@ -148,6 +177,9 @@ class Idea extends Model
             $w->where('ideas.visibility', 'public');
             if ($user) {
                 $w->orWhere('ideas.user_id', $user->id)->orWhereHas('members', fn ($m) => $m->where('users.id', $user->id));
+                if (Team::ready()) {
+                    $w->orWhereIn('ideas.team_id', DB::table('team_user')->where('user_id', $user->id)->select('team_id'));
+                }
             }
         });
     }
@@ -158,7 +190,7 @@ class Idea extends Model
             return true;
         }
 
-        return $user && ($user->id === $this->user_id || $this->members()->where('users.id', $user->id)->exists());
+        return $user && ($user->id === $this->user_id || $this->members()->where('users.id', $user->id)->exists() || $this->isOnTeam($user));
     }
 
     public function getIsPublicAttribute(): bool

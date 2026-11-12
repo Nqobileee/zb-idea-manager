@@ -2,11 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Team;
 use App\Models\User;
-use App\Support\Realtime;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -61,10 +60,8 @@ class Chat extends Component
         if ($text === '') {
             return;
         }
-        $msg = $conv->messages()->create(['user_id' => $me->id, 'body' => mb_substr($text, 0, 4000)]);
-        $conv->update(['last_message_at' => now()]);
+        $conv->post($me, $text);
         $this->reset('body');
-        Realtime::send(new MessageSent($msg, $conv->is_group ? null : $conv->other($me)->id));
     }
 
     public function render()
@@ -86,11 +83,16 @@ class Chat extends Component
         $list = $me->conversations()->with(['userA', 'userB'])->get()->map($summarise)
             ->filter(fn ($c) => $c->last)->sortByDesc(fn ($c) => $c->last->created_at)->values();
 
+        // Team and project groups the person was added to. Empty ones still show, so a new team's chat can be found.
+        $groups = Team::ready()
+            ? $me->groupChats()->get()->map($summarise)->sortByDesc(fn ($c) => ($c->last?->created_at ?? $c->created_at)->timestamp)->values()
+            : collect();
+
         $people = $this->picking
             ? User::where('id', '!=', $me->id)->when($this->find, fn ($q) => $q->whereLike('name', '%'.$this->find.'%'))->orderBy('name')->get()
             : collect();
 
-        return view('livewire.chat', ['conv' => $conv, 'group' => $group, 'list' => $list, 'people' => $people, 'me' => $me, 'members' => User::count()])
+        return view('livewire.chat', ['conv' => $conv, 'group' => $group, 'groups' => $groups, 'list' => $list, 'people' => $people, 'me' => $me, 'members' => User::count()])
             ->layout('layouts.app', ['bare' => (bool) $conv, 'noDock' => true, 'title' => 'Chat']);
     }
 }

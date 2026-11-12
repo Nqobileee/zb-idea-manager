@@ -286,8 +286,10 @@ class WhatsappBot
             return;
         }
         $idea = Idea::findOrFail($d['idea_id']);
-        $this->actions->approve($idea, $user, $d['note'] ?? null);
-        $this->wa->text($s->phone, 'Approved. The author has been told.');
+        $result = $this->actions->approve($idea, $user, $d['note'] ?? null);
+        $this->wa->text($s->phone, $result['accepted']
+            ? 'Approved. The author has been told.'
+            : "Your approval is recorded ({$result['votes']} of {$result['needed']}). The idea is accepted when {$result['needed']} executives approve it.");
     }
 
     private function reset(WhatsappSession $s, bool $keepDraft): void

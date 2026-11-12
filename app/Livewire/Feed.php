@@ -51,6 +51,12 @@ class Feed extends Component
     #[On('realtime')]
     public function refresh(): void {}
 
+    public function closeSearch(): void
+    {
+        $this->search = '';
+        $this->showSearch = false;
+    }
+
     public function clearFilters(): void
     {
         $this->statuses = [];
@@ -80,7 +86,8 @@ class Feed extends Component
         }
         if (trim($this->search) !== '') {
             $term = '%'.trim($this->search).'%';
-            $q->where(fn ($w) => $w->whereLike('title', $term)->orWhereLike('summary', $term)->orWhereLike('body', $term));
+            $q->where(fn ($w) => $w->whereLike('title', $term)->orWhereLike('summary', $term)->orWhereLike('body', $term)
+                ->orWhereHas('author', fn ($a) => $a->whereLike('name', $term)));
         }
         $all = $q->get();
 

@@ -52,9 +52,11 @@ class IdeaShow extends Component
 
     public function approve(IdeaActions $actions): void
     {
-        $actions->approve($this->idea, auth()->user(), trim($this->note) ?: null);
+        $result = $actions->approve($this->idea, auth()->user(), trim($this->note) ?: null);
         $this->reset('note');
-        $this->dispatch('toast', message: 'Approved. Email sent to '.$this->idea->author->email);
+        $this->dispatch('toast', message: $result['accepted']
+            ? 'Approved. Email sent to '.$this->idea->author->email
+            : "Your approval is recorded ({$result['votes']} of {$result['needed']}). The idea is accepted when {$result['needed']} executives approve it.");
     }
 
     public function deleteIdea(IdeaActions $actions)
@@ -73,7 +75,7 @@ class IdeaShow extends Component
 
     public function render()
     {
-        $idea = Idea::feed()->visibleTo(auth()->user())->with(['comments.author', 'approver'])->findOrFail($this->idea->id);
+        $idea = Idea::feed()->visibleTo(auth()->user())->with(['comments.author', 'approver'] + (\App\Models\Team::ready() ? [2 => 'approvals', 3 => 'team'] : []))->findOrFail($this->idea->id);
 
         return view('livewire.idea-show', ['idea' => $idea, 'me' => auth()->user()])->title($idea->title);
     }

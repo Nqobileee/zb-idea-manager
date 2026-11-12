@@ -8,11 +8,14 @@ use App\Models\Challenge;
 use App\Models\Comment;
 use App\Models\Idea;
 use App\Models\IdeaTask;
+use App\Models\Conversation;
 use App\Models\IdeaUpdate;
 use App\Models\SentEmail;
+use App\Models\Team;
 use App\Models\User;
 use App\Support\Outbox;
 use App\Support\Realtime;
+use Illuminate\Support\Facades\DB;
 
 /** Every change to ideas goes through here so the web app and the WhatsApp bot behave the same. */
 class IdeaActions
@@ -21,7 +24,7 @@ class IdeaActions
 
     public function create(User $author, array $data, string $source = 'web'): Idea
     {
-        return Idea::create([
+        $idea = Idea::create([
             'num' => Idea::nextNumber(),
             'user_id' => $author->id,
             'challenge_id' => $data['challenge_id'] ?? null,
@@ -30,7 +33,21 @@ class IdeaActions
             'body' => $data['body'] ?: $data['summary'],
             'status' => $data['status'] ?? 'Idea',
             'source' => $source,
-        ] + (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : []));
+        ] + (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : [])
+          + (Team::ready() ? ['team_id' => $this->teamFor($author, $data['team_id'] ?? null)?->id] : []));
+
+        // Applying with a team: every teammate is told and can open and work on the idea.
+        if ($idea->team_id) {
+            $idea->team->members->where('id', '!=', $author->id)->each(fn (User $m) => $this->notify($m, 'tag', $author, $idea, $idea->title));
+        }
+
+        return $idea;
+    }
+
+    /** The team an idea is put forward with. Only a team the author belongs to counts. */
+    private function teamFor(User $author, $teamId): ?Team
+    {
+        return $teamId ? $author->teams()->whereKey((int) $teamId)->first() : null;
     }
 
     public function update(Idea $idea, User $by, array $data): Idea
@@ -40,7 +57,8 @@ class IdeaActions
         $idea->update([
             'title' => $data['title'], 'summary' => $data['summary'], 'body' => $data['body'] ?: $data['summary'],
             'status' => $data['status'], 'challenge_id' => $data['challenge_id'] ?? null,
-        ] + (isset($data['visibility']) ? (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : []) : []));
+        ] + (isset($data['visibility']) ? (Idea::hasVisibility() ? ['visibility' => ($data['visibility'] ?? 'private') === 'public' ? 'public' : 'private'] : []) : [])
+          + (Team::ready() && array_key_exists('team_id', $data) ? ['team_id' => $this->teamFor($idea->author, $data['team_id'])?->id] : []));
         $this->recordStage($idea, $from, $by);
 
         return $idea;
@@ -184,19 +202,62 @@ class IdeaActions
         $idea->load('members');
     }
 
-    public function approve(Idea $idea, User $by, ?string $note = null): void
+    /**
+     * An executive approves an idea. When its challenge asks for a group decision the idea is only accepted once enough
+     * executives have approved; until then this just records their approval.
+     *
+     * @return array{accepted: bool, votes: int, needed: int}
+     */
+    public function approve(Idea $idea, User $by, ?string $note = null): array
     {
         abort_unless($by->is_admin, 403);
+        $needed = $idea->approvalsNeeded();
+        $votes = 1;
+        if (Team::ready()) {
+            $idea->approvals()->syncWithoutDetaching([$by->id => ['note' => $note]]);
+            $votes = $idea->approvals()->count();
+            if (! $idea->approved && $votes < $needed) {
+                return ['accepted' => false, 'votes' => $votes, 'needed' => $needed];
+            }
+        }
         $idea->update(['approved' => true, 'approved_by' => $by->id, 'approved_at' => now(), 'approval_note' => $note]);
         $author = $idea->author;
         $this->email('Approval', $author->email, $by->email, "Your idea {$idea->code} has been approved", "Hi {$author->first_name},\n\n{$by->name} approved your idea \"{$idea->title}\" on ZB Idea Manager.\n\n".($note ? "Note from the reviewer:\n{$note}\n\n" : '')."Reply to this email or from your Activity page.\n\nZB Idea Manager");
         $this->notify($author, 'approval', $by, $idea, $note);
+        $this->openProjectGroup($idea, $by);
+
+        return ['accepted' => true, 'votes' => $votes, 'needed' => $needed];
+    }
+
+    /**
+     * Once an answer to a challenge is accepted, the executives who accepted it, the person who set the challenge,
+     * the author and their team get a group chat to plan the next steps.
+     */
+    private function openProjectGroup(Idea $idea, User $by): void
+    {
+        if (! Team::ready() || ! $idea->challenge_id) {
+            return;
+        }
+        $people = collect([$idea->user_id, $idea->challenge?->user_id])
+            ->merge($idea->approvals()->pluck('users.id'))
+            ->merge($idea->team_id ? DB::table('team_user')->where('team_id', $idea->team_id)->pluck('user_id') : [])
+            ->merge($idea->members()->pluck('users.id'))
+            ->filter()->unique()->values()->all();
+
+        $group = Conversation::where(['scope' => 'project', 'idea_id' => $idea->id])->first();
+        $group ??= Conversation::openGroup('project', $idea->title, $people, ['idea_id' => $idea->id]);
+        $fresh = $group->wasRecentlyCreated;
+        $group->members()->syncWithoutDetaching($people);
+        if ($fresh) {
+            $names = $idea->approvals()->pluck('users.name')->implode(', ');
+            $group->post($by, "{$idea->code} \"{$idea->title}\" was accepted by {$names}. This group is for the executives and the team to plan the next steps.");
+        }
     }
 
     public function postChallenge(User $by, array $data): Challenge
     {
         abort_unless($by->is_admin, 403);
-        $ch = Challenge::create(['user_id' => $by->id, 'title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null]);
+        $ch = Challenge::create(['user_id' => $by->id, 'title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null] + $this->decision($data));
         User::where('id', '!=', $by->id)->each(function (User $u) use ($by, $ch) {
             Activity::create(['user_id' => $u->id, 'type' => 'challenge', 'actor_id' => $by->id, 'challenge_id' => $ch->id]);
             Realtime::send(new ActivityCreated($u->id));
@@ -208,7 +269,7 @@ class IdeaActions
     public function updateChallenge(Challenge $challenge, User $by, array $data): Challenge
     {
         abort_unless($by->is_admin, 403);
-        $challenge->update(['title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null]);
+        $challenge->update(['title' => $data['title'], 'brief' => $data['brief'], 'keywords' => $this->keywordsFrom($data), 'deadline' => $data['deadline'] ?: null] + $this->decision($data));
 
         return $challenge;
     }
@@ -218,6 +279,12 @@ class IdeaActions
     {
         abort_unless($by->is_admin, 403);
         $challenge->delete();
+    }
+
+    /** How many executives must accept an answer. Only stored once the teams migration has run. */
+    private function decision(array $data): array
+    {
+        return Team::ready() ? ['approvals_required' => max(1, min(9, (int) ($data['approvals_required'] ?? 1)))] : [];
     }
 
     private function keywordsFrom(array $data): array

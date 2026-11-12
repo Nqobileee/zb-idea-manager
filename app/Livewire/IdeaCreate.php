@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Challenge;
 use App\Models\Idea;
 use App\Models\IdeaFile;
+use App\Models\Team;
 use App\Services\IdeaActions;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -33,6 +34,10 @@ class IdeaCreate extends Component
     #[Url]
     public ?int $challenge = null;
 
+    /** The team the idea is put forward with, if any. */
+    #[Url]
+    public ?int $team = null;
+
     public array $docs = [];
 
     public array $images = [];
@@ -48,6 +53,11 @@ class IdeaCreate extends Component
             $this->status = $idea->status;
             $this->visibility = $idea->is_public ? 'public' : 'private';
             $this->challenge = $idea->challenge_id;
+            $this->team = $idea->team_id;
+        }
+        // a link can name any team; only one this person belongs to is kept
+        if ($this->team && ! (Team::ready() && auth()->user()->teams()->whereKey($this->team)->exists())) {
+            $this->team = null;
         }
     }
 
@@ -65,6 +75,7 @@ class IdeaCreate extends Component
             'status' => 'required|in:'.implode(',', Idea::STATUSES),
             'visibility' => 'required|in:private,public',
             'challenge' => 'nullable|exists:challenges,id',
+            'team' => ['nullable', 'integer', Team::ready() ? \Illuminate\Validation\Rule::exists('team_user', 'team_id')->where('user_id', auth()->id()) : 'prohibited'],
             'docs.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,csv,txt',
             'images.*' => 'image|max:5120',
         ];
@@ -88,6 +99,7 @@ class IdeaCreate extends Component
         $data = [
             'title' => $this->title, 'summary' => $this->summary, 'body' => $this->body,
             'status' => $this->status, 'challenge_id' => $this->challenge, 'visibility' => $this->visibility,
+            'team_id' => $this->team,
         ];
         $idea = $this->ideaId
             ? $actions->update(Idea::findOrFail($this->ideaId), auth()->user(), $data)
@@ -111,6 +123,7 @@ class IdeaCreate extends Component
     {
         return view('livewire.idea-create', [
             'challenges' => Challenge::orderBy('title')->get(),
+            'teams' => Team::ready() ? auth()->user()->teams()->get() : collect(),
             'existing' => $this->ideaId ? IdeaFile::where('idea_id', $this->ideaId)->get() : collect(),
         ])->title($this->ideaId ? 'Edit idea' : 'New idea');
     }

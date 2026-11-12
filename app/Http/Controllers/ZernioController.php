@@ -506,9 +506,11 @@ class ZernioController extends Controller
             return $this->fail('I could not find that idea.');
         }
         $note = trim((string) $this->input($r, 'approveNote'));
-        $this->actions->approve($idea, $u, $note === '' || Str::lower($note) === 'skip' ? null : $note);
+        $result = $this->actions->approve($idea, $u, $note === '' || Str::lower($note) === 'skip' ? null : $note);
 
-        return $this->reply("Approved {$idea->code}. The author has been told.");
+        return $this->reply($result['accepted']
+            ? "Approved {$idea->code}. The author has been told."
+            : "Your approval of {$idea->code} is recorded ({$result['votes']} of {$result['needed']}). It is accepted when {$result['needed']} executives approve it.");
     }
 
     // ---- sign-in and registration (the bot asks for the email first) ------------------------

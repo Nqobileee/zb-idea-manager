@@ -4,7 +4,7 @@ ZB Idea Manager is where verified ZB Group employees post ideas, answer challeng
 
 **Stack:** PHP 8.3 and Laravel 13, Livewire 4 with Blade, Tailwind CSS 4, Alpine.js, a little plain JavaScript, Laravel Reverb for realtime, and Supabase for the database (Postgres) and optionally file storage. The Android app is a Capacitor wrapper around the same web app. There is no separate native, React or Vue codebase: it is PHP, JavaScript and SQL.
 
-> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 36 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
+> **What is built.** The web app, the executive tools, realtime chat and notifications, the WhatsApp bot (webhook, linking, posting, approving, notifications) and the Capacitor Android project are all in the repository. 122 automated tests pass, including the WhatsApp flows through the real webhook. The database starts **empty**: there is no sample data, and everything in it is created by real users. The original static prototype is kept in `prototype/` for reference.
 >
 > **Not verified here.** The Android project is generated but was not compiled on the machine this was built on (no Android SDK). The WhatsApp bot was tested against the webhook only, not against a live Meta account. See sections 11 and 12 for the steps.
 
@@ -62,12 +62,15 @@ flowchart LR
 ### For everyone
 - **Sign in** with just an email address for now: a valid address is enough and the account is created on the spot (no code, no password). When `IDEAS_REQUIRE_CODE=true` a 6-digit code is emailed first. The session lasts until sign-out. Your account is created the first time you sign in, and you can add your role, department and photo under *Edit profile*.
 - **Open challenges at the top of Home.** A newly posted challenge appears above the ideas as a swipeable card with an **Answer** button, until its deadline passes. Hidden while you search or filter.
-- **Home feed** with *For you* (department, engagement, challenge ideas, freshness) and *Latest*; filter by stage and challenge; search.
+- **Home feed** with *For you* (department, engagement, challenge ideas, freshness) and *Latest*; filter by stage and challenge; search ideas by title, text **or author name**. The search box can be closed with its **x**. On a phone the top-bar search button only appears on Home, where it works.
+- **Search and filter elsewhere.** *Challenges* has a search box (title, brief or who set it) and **All / Open / Closed** chips (closed = deadline passed). *Teams* has a search box (name, topic or a member's name) and **All teams / My teams / I lead** chips. Both have a *Clear search* button when nothing matches.
 - **Idea cards** with author, blue tick for executives, stage tag, summary, image, challenge, documents and like / comment / share / save.
 - **Idea page** with stage tracker, images, full text, downloadable documents and comments.
 - **Post an idea** with title, summary, details, stage, challenge, photos and documents (PDF, Office files, CSV; up to 10 MB each).
 - **Challenges** set by executives, with keywords and a deadline. "Answer this challenge" pre-selects it in the idea form.
 - **Chat** with an *All staff* group that every member is in, pinned on top of the list, and one to one chats with anyone below it. In the group, tapping a sender's name starts a private chat with them. Updated live through Reverb. Your own messages show one grey tick when sent and two green ticks once delivered. On a phone an open conversation takes the whole screen.
+- **Teams** (`/teams`, in the sidebar and the phone menu). Anyone can start a team and becomes its leader; the leader (or an executive) adds and removes members, renames it or deletes it, and members can leave. **Every team has its own group chat**, created with the team, that always has exactly the team's members.
+- **Apply with a team.** The idea form has a *Put forward by a team* / *Apply with a team* choice (only shown if you belong to a team, and only your own teams count). The idea then belongs to the team: every teammate is notified, can see it even if it is private, and can work on it like a tagged member (post updates, tasks, move the stage). *Post an idea as this team* on a team page pre-selects it.
 - **Activity** for likes, comments, approvals, stage changes and new challenges, with an unread badge.
 - **Members and profiles** with a photo, bio, their ideas and (on your own profile) saved ideas.
 - **WhatsApp** to link your number, post ideas, check your ideas, see top ideas and get notified.
@@ -82,6 +85,8 @@ flowchart LR
 ### For executives
 - **AI ranking** against a chosen challenge with three weight sliders, top five highlighted, approve in one tap, and *Email me the top 5*.
 - **Approval** emails the author, adds an Activity item and sends a WhatsApp message if their number is linked.
+- **Group decisions.** When posting or editing a challenge, an executive chooses how many executives must accept an answer (1 to the number of executives; the default, *any one executive*, behaves exactly as before). With more than one, each executive's approval is recorded and the idea page shows *Group decision 1 of 2* and who approved; the idea only becomes **approved** (and the author only hears) once enough have approved. A number larger than the executives there are is capped, so it can always be reached. The same rule applies from the AI ranking page, WhatsApp and Zernio, whose replies say "recorded (1 of 2)" until it is met.
+- **Group chat after acceptance.** When an answer to a challenge is accepted, a **project group** named after the idea is created with the executives who approved it, the executive who set the challenge, the author and the author's team (and anyone tagged on the project). A first message from the approving executive says who accepted it. Ideas that do not answer a challenge do not get one.
 - **Stage control and a note** on every idea page, and a shortcut to message the author.
 - **New challenge** posted to all staff.
 - **Insights.**
@@ -256,7 +261,9 @@ Pipeline tables: `idea_updates` (progress notes and stage moves), `idea_tasks` (
 
 Other tables: `login_codes` (hashed one-time codes with expiry and attempt count), `sent_emails` (the email log), `whatsapp_messages` (message ids for de-duplication, direction, delivery status), plus Laravel's `sessions`, `cache` and `jobs`.
 
-The *All staff* group chat is one `conversations` row with `is_group = true` and no user pair; everyone signed in belongs to it, so there is no membership table. `conversation_reads` holds how far each person has read it (a group message has many readers, so `messages.read_at` is used for one to one chats only). `messages.delivered_at` is set the first time a message reaches someone else's app and drives the ticks.
+**Teams and group decisions** (migration `2026_11_12_000000_create_teams_and_group_decisions`): `teams` (name, about, leader), `team_user` (members), `ideas.team_id`, `challenges.approvals_required` (default 1), `idea_approvals` (one row per approving executive, with their note), and `conversation_members` (who is in a team or project group). `conversations` gets `scope` (`null` = All staff, `team`, `project`), `team_id` and `idea_id`; deleting a team or an idea deletes its group. The new tables have row level security on, like the rest. Until the migration has run the app keeps working exactly as before, `/teams` says teams are not switched on, and `/teams/{id}` is a 404 (the same pattern as the group chat and visibility migrations).
+
+The *All staff* group chat is one `conversations` row with `is_group = true` and no user pair; everyone signed in belongs to it, so it has no membership rows (team and project groups do, in `conversation_members`). `conversation_reads` holds how far each person has read it (a group message has many readers, so `messages.read_at` is used for one to one chats only). `messages.delivered_at` is set the first time a message reaches someone else's app and drives the ticks.
 
 Idea codes are shown as `ZB-IDEA-0141` (from `ideas.num`). Stages are `Idea, Prototype, Demo, Pilot, Launched`; `approved` is a separate flag.
 
@@ -288,7 +295,8 @@ stateDiagram-v2
 | `/ideas/{idea}` | `IdeaShow` | Signed in |
 | `/challenges`, `/challenges/{id}` | `Challenges`, `ChallengeShow` | Signed in |
 | `/challenges/create` | `ChallengeCreate` | Executives |
-| `/chat/{conversation?}` | `Chat` | Participants only; the All staff group is open to everyone signed in |
+| `/teams`, `/teams/{id}` | `Teams`, `TeamShow` | Signed in; the leader or an executive manages a team |
+| `/chat/{conversation?}` | `Chat` | Participants only; the All staff group is open to everyone signed in, team and project groups to their members |
 | `/activity` | `ActivityFeed` | Signed in |
 | `/members`, `/members/{user}` | `Members`, `Profile` | Signed in |
 | `/pipeline` | `Pipeline` (Board and Projects views) | Signed in |
@@ -363,10 +371,13 @@ flowchart TD
     C --> W[Adjust weights]
     W --> R[Review the top five]
     R --> D{Approve?}
-    D -->|Yes| AP[Mark approved with note]
+    D -->|Yes| GD{Enough executives?}
+    GD -->|Not yet| VR[Record this approval, show 1 of 2]
+    GD -->|Yes| AP[Mark approved with note]
     AP --> EM[Email the author]
     AP --> NT[Activity item]
     AP --> WA[WhatsApp message if linked]
+    AP --> PG[Project group: executives, challenge owner, author, team]
     D -->|No| ST[Change stage or message the author]
     R --> DG[Email me the top 5]
 ```
@@ -769,7 +780,7 @@ Fixed limits are in `config/ideas.php`: code lifetime 10 minutes, 5 attempts, 30
 php artisan test
 ```
 
-36 tests run against an in-memory SQLite database. They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
+122 tests run against an in-memory SQLite database (the test configuration pins the database and the upload disk, so a real `.env` is never touched). They load a small set of sample people and ideas from `tests/Fixtures` so there is something to test; the real database never gets this data:
 
 | Area | What is checked |
 |---|---|
@@ -779,6 +790,10 @@ php artisan test
 | Executive | Approval emails the author and adds an Activity item, the digest is logged, employees cannot approve, ranking order |
 | Empty database | The default seeder adds nothing, and every page renders with no data at all |
 | Chat | Sending a message, the All staff group pinned first and open to everyone, per-person unread counts in the group, ticks turning green on delivery |
+| Teams | Creating a team makes its group chat, members stay in step with the group, only members can open it, the leader cannot leave, deleting a team removes its chat but keeps its ideas, applying with a team (and refusing one you are not in), teammates see private team ideas |
+| Group decisions | Several executives needed before an answer is accepted, one executive cannot vote twice, the count is capped to the executives there are, the project group has the right people (and not others), no group for ideas without a challenge, one group only |
+| Search and filter | Feed search by author and closing the box, challenge search and open/closed, team search by name, topic or member, My teams and I lead |
+| Before the migration | With the teams migration rolled back every page still loads and posting, chatting and approving work as before |
 | WhatsApp | Webhook handshake, unsigned requests rejected, linking by emailed code, posting an idea by chat, cancel, employees blocked from executive commands, executive approval end to end, stop and unlink, lockout after wrong codes, duplicate deliveries ignored |
 
 Tests post real payloads to `/webhooks/whatsapp`, the same shape Meta sends.

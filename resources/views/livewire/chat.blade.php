@@ -26,6 +26,15 @@
                 </span>
             </button>
             @endif
+            @foreach ($groups as $g)
+            <button wire:click="open({{ $g->id }})" wire:key="cv{{ $g->id }}" @class(['flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left hover:bg-surface', 'bg-tint' => $conv?->id === $g->id])>
+                <span class="grid size-[42px] flex-none place-items-center rounded-full bg-tint-2 text-brand"><x-icon :name="$g->scope === 'project' ? 'board' : 'shield'" :size="20" /></span>
+                <span class="min-w-0 grow">
+                    <span class="flex items-baseline justify-between gap-2"><b class="truncate">{{ $g->name }}</b>@if ($g->last)<small class="flex-none text-xs text-muted">{{ $g->last->created_at->diffForHumans(null, true, true) }}</small>@endif</span>
+                    <span class="flex items-center gap-2"><span class="block truncate text-sm text-muted">@if ($g->last){{ $g->last->user_id === $me->id ? 'You' : $g->last->sender->first_name }}: {{ $g->last->body }}@else{{ $g->scope === 'project' ? 'Project group' : 'Team chat' }}. Say hello.@endif</span>@if ($g->unread)<span class="count !ml-auto">{{ $g->unread }}</span>@endif</span>
+                </span>
+            </button>
+            @endforeach
             @forelse ($list as $c)
                 @php($other = $c->other($me))
                 <button wire:click="open({{ $c->id }})" wire:key="cv{{ $c->id }}" @class(['flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface', 'bg-tint' => $conv?->id === $c->id])>
@@ -45,7 +54,9 @@
             @if ($conv)
                 <div class="flex items-center gap-2.5 border-b border-line px-3 py-2.5" style="padding-top:calc(.625rem + env(safe-area-inset-top,0px))">
                     <button wire:click="close" class="iconbtn md:hidden" aria-label="Back to chats"><x-icon name="back" :size="20" /></button>
-                    @if ($conv->is_group)
+                    @if ($conv->is_group && ! $conv->isAllStaff())
+                        <a href="{{ $conv->team_id ? route('teams.show', $conv->team_id) : ($conv->idea_id ? route('projects.show', $conv->idea_id) : route('chat')) }}" wire:navigate class="flex min-w-0 items-center gap-2.5"><span class="grid size-9 flex-none place-items-center rounded-full bg-tint-2 text-brand"><x-icon :name="$conv->scope === 'project' ? 'board' : 'shield'" :size="18" /></span><span class="min-w-0"><b class="block truncate">{{ $conv->name }}</b><small class="block truncate text-xs text-muted">{{ $conv->members()->count() }} members · {{ $conv->scope === 'project' ? 'Project group' : 'Team chat' }}</small></span></a>
+                    @elseif ($conv->is_group)
                         <a href="{{ route('members') }}" wire:navigate class="flex min-w-0 items-center gap-2.5"><span class="grid size-9 flex-none place-items-center rounded-full bg-brand text-white"><x-icon name="users" :size="18" /></span><span class="min-w-0"><b class="block truncate">{{ $conv->name }}</b><small class="block truncate text-xs text-muted">{{ $members }} members · everyone at ZB</small></span></a>
                     @else
                         @php($other = $conv->other($me))

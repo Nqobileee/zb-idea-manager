@@ -105,6 +105,9 @@ create index "idea_tasks_idea_id_done_index" on "idea_tasks" ("idea_id", "done")
 -- 2026_10_06_000000_add_member_type_to_users.php
 alter table "users" add column "member_type" varchar(16) not null default 'employee';
 
+-- 2026_10_07_000000_add_visibility_to_ideas.php
+alter table "ideas" add column "visibility" varchar(10) not null default 'private';
+
 -- 2026_10_08_000000_add_group_chat_and_delivery_ticks.php
 alter table "conversations" add column "is_group" boolean not null default '0';
 alter table "conversations" add column "name" varchar(255) null;
@@ -120,6 +123,49 @@ alter table "conversation_reads" add primary key ("conversation_id", "user_id");
 alter table "messages" add column "delivered_at" timestamp(0) without time zone null;
 update "messages" set "delivered_at" = read_at where "read_at" is not null;
 insert into "conversations" ("is_group", "name") values (true, 'All staff');
+
+-- 2026_10_08_000000_add_wa_greeted_on_to_users.php
+alter table "users" add column "wa_greeted_on" date null;
+
+-- 2026_10_10_000000_add_must_change_password_to_users.php
+alter table "users" add column "must_change_password" boolean not null default '0';
+
+-- 2026_10_11_000000_create_whatsapp_account_links.php
+create table "whatsapp_account_links" ("id" bigserial not null primary key, "phone" varchar(20) not null, "user_id" bigint not null, "last_used_at" timestamp(0) without time zone not null default CURRENT_TIMESTAMP);
+alter table "whatsapp_account_links" add constraint "whatsapp_account_links_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "whatsapp_account_links" add constraint "whatsapp_account_links_phone_user_id_unique" unique ("phone", "user_id");
+
+-- 2026_10_12_000000_phone_only_signup.php
+alter table "users" alter column "email" type varchar(255), alter column "email" drop not null, alter column "email" drop default, alter column "email" drop identity if exists;
+alter table "users" add column "wa_welcomed_at" timestamp(0) without time zone null;
+alter table "users" add column "source" varchar(12) null;
+comment on column "users"."email" is NULL;
+update "users" set "wa_welcomed_at" = '2026-11-12 08:38:10';
+
+-- 2026_11_12_000000_create_teams_and_group_decisions.php
+create table "teams" ("id" bigserial not null primary key, "user_id" bigint not null, "name" varchar(255) not null, "about" text null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "teams" add constraint "teams_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+create table "team_user" ("team_id" bigint not null, "user_id" bigint not null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "team_user" add constraint "team_user_team_id_foreign" foreign key ("team_id") references "teams" ("id") on delete cascade;
+alter table "team_user" add constraint "team_user_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "team_user" add primary key ("team_id", "user_id");
+alter table "ideas" add column "team_id" bigint null;
+alter table "ideas" add constraint "ideas_team_id_foreign" foreign key ("team_id") references "teams" ("id") on delete set null;
+alter table "challenges" add column "approvals_required" smallint not null default '1';
+create table "idea_approvals" ("idea_id" bigint not null, "user_id" bigint not null, "note" text null, "created_at" timestamp(0) without time zone null, "updated_at" timestamp(0) without time zone null);
+alter table "idea_approvals" add constraint "idea_approvals_idea_id_foreign" foreign key ("idea_id") references "ideas" ("id") on delete cascade;
+alter table "idea_approvals" add constraint "idea_approvals_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "idea_approvals" add primary key ("idea_id", "user_id");
+alter table "conversations" add column "scope" varchar(16) null;
+alter table "conversations" add column "team_id" bigint null;
+alter table "conversations" add constraint "conversations_team_id_foreign" foreign key ("team_id") references "teams" ("id") on delete cascade;
+alter table "conversations" add column "idea_id" bigint null;
+alter table "conversations" add constraint "conversations_idea_id_foreign" foreign key ("idea_id") references "ideas" ("id") on delete cascade;
+create index "conversations_scope_index" on "conversations" ("scope");
+create table "conversation_members" ("conversation_id" bigint not null, "user_id" bigint not null);
+alter table "conversation_members" add constraint "conversation_members_conversation_id_foreign" foreign key ("conversation_id") references "conversations" ("id") on delete cascade;
+alter table "conversation_members" add constraint "conversation_members_user_id_foreign" foreign key ("user_id") references "users" ("id") on delete cascade;
+alter table "conversation_members" add primary key ("conversation_id", "user_id");
 
 -- Row level security: Supabase exposes public tables through its REST API. Enabling RLS with no policies
 -- keeps the data private; Laravel connects as the postgres role, which bypasses RLS.
@@ -148,6 +194,11 @@ alter table "idea_members" enable row level security;
 alter table "idea_updates" enable row level security;
 alter table "idea_tasks" enable row level security;
 alter table "conversation_reads" enable row level security;
+alter table "whatsapp_account_links" enable row level security;
+alter table "teams" enable row level security;
+alter table "team_user" enable row level security;
+alter table "idea_approvals" enable row level security;
+alter table "conversation_members" enable row level security;
 
 -- Tell Laravel the migrations are already applied (so a later `php artisan migrate` does nothing).
 create table if not exists "migrations" ("id" serial primary key, "migration" varchar(255) not null, "batch" integer not null);
@@ -160,4 +211,10 @@ insert into "migrations" ("migration", "batch") values ('2026_10_03_000000_use_z
 insert into "migrations" ("migration", "batch") values ('2026_10_04_000000_clear_autofilled_profile_text', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_05_000000_create_pipeline_tables', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_06_000000_add_member_type_to_users', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_07_000000_add_visibility_to_ideas', 1);
 insert into "migrations" ("migration", "batch") values ('2026_10_08_000000_add_group_chat_and_delivery_ticks', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_08_000000_add_wa_greeted_on_to_users', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_10_000000_add_must_change_password_to_users', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_11_000000_create_whatsapp_account_links', 1);
+insert into "migrations" ("migration", "batch") values ('2026_10_12_000000_phone_only_signup', 1);
+insert into "migrations" ("migration", "batch") values ('2026_11_12_000000_create_teams_and_group_decisions', 1);

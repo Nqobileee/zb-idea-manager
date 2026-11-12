@@ -18,6 +18,8 @@ use App\Livewire\Members;
 use App\Livewire\Pipeline;
 use App\Livewire\ProjectShow;
 use App\Livewire\Profile;
+use App\Livewire\TeamShow;
+use App\Livewire\Teams;
 use App\Livewire\ProfileEdit;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +104,9 @@ Route::middleware(['auth', 'fresh.password'])->group(function () {
     Route::get('/challenges/create', ChallengeCreate::class)->name('challenges.create');
     Route::get('/challenges/{challenge}/edit', ChallengeCreate::class)->name('challenges.edit');
     Route::get('/challenges/{challenge}', ChallengeShow::class)->name('challenges.show');
+
+    Route::get('/teams', Teams::class)->name('teams');
+    Route::get('/teams/{teamId}', TeamShow::class)->name('teams.show');
 
     Route::get('/chat/{conversation?}', Chat::class)->name('chat');
     Route::get('/activity', ActivityFeed::class)->name('activity');

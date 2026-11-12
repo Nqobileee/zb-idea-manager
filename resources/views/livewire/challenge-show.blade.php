@@ -5,6 +5,7 @@
     <div class="mt-4 flex flex-wrap items-center gap-2">
         <span class="chip chip-ghost">Set by {{ $challenge->owner->name }}</span>
         @if ($challenge->deadline)<span class="chip chip-ghost">Deadline {{ $challenge->deadline->format('j M Y') }} · {{ $challenge->daysLeft() }} days left</span>@endif
+        @if (($challenge->approvals_required ?? 1) > 1)<span class="chip chip-ghost">Accepted when {{ $challenge->approvals_required }} executives approve</span>@endif
         @foreach ($challenge->keywords as $k)<span class="chip">{{ $k }}</span>@endforeach
     </div>
     <div class="mt-5 flex flex-wrap gap-2">

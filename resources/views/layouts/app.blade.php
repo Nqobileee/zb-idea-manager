@@ -20,6 +20,7 @@
     $nav = [
         ['home', 'Home', 'home', route('home'), ['home', 'ideas.show']],
         ['challenges', $user->is_admin ? 'My challenges' : 'Challenges', 'flag', route('challenges'), ['challenges', 'challenges.show', 'challenges.create', 'challenges.edit']],
+        ['teams', 'Teams', 'shield', route('teams'), ['teams', 'teams.show']],
         ['chat', 'Chat', 'chat', route('chat'), ['chat']],
         ['activity', 'Activity', 'bell', route('activity'), ['activity']],
         ['members', 'Members', 'users', route('members'), ['members', 'profile', 'profile.edit']],
@@ -69,11 +70,12 @@
                 @endif
                 <div class="max-w-[52%] truncate font-display text-[17px] font-bold">{{ $title ?? 'Ideas' }}</div>
                 <div class="flex items-center gap-0.5" x-data="{ menu: false }">
-                    <button class="iconbtn" aria-label="Search" x-on:click="Livewire.dispatch('toggle-search')"><x-icon name="search" :size="21" /></button>
+                    @if ($route === 'home')<button class="iconbtn" aria-label="Search" x-on:click="Livewire.dispatch('toggle-search')"><x-icon name="search" :size="21" /></button>@endif
                     <button class="iconbtn" aria-label="Your profile and menu" x-on:click="menu = !menu"><x-avatar :user="$user" :size="30" /></button>
                     <div x-cloak x-show="menu" x-on:click.outside="menu = false" class="absolute top-14 right-3 w-56 rounded-2xl border border-line bg-white p-2 shadow-xl">
                         <a href="{{ route('profile', $user) }}" class="nav"><x-icon name="user" :size="18" /> My profile</a>
                         <a href="{{ route('challenges') }}" class="nav"><x-icon name="flag" :size="18" /> {{ $user->is_admin ? 'My challenges' : 'Challenges' }}</a>
+                        <a href="{{ route('teams') }}" class="nav"><x-icon name="shield" :size="18" /> Teams</a>
                         @if ($user->is_admin)
                             <a href="{{ route('admin.ranking') }}" class="nav"><x-icon name="spark" :size="18" /> AI ranking</a>
                             <a href="{{ route('admin.insights') }}" class="nav"><x-icon name="chart" :size="18" /> Insights</a>
@@ -93,7 +95,7 @@
 {{-- Phone dock with the floating post button on the right --}}
 @unless ($bare || ($noDock ?? false))
     <nav class="glass fixed inset-x-3 z-40 grid h-[66px] grid-cols-5 items-center rounded-3xl shadow-[0_12px_34px_rgba(4,144,22,.18)] md:hidden" style="bottom:calc(12px + env(safe-area-inset-bottom,0px))" aria-label="Main">
-        @foreach (collect($nav)->reject(fn ($n) => $n[0] === 'challenges') as [$key, $label, $icon, $url, $match])
+        @foreach (collect($nav)->reject(fn ($n) => in_array($n[0], ['challenges', 'teams'], true)) as [$key, $label, $icon, $url, $match])
             <a href="{{ $url }}" wire:navigate @class(['relative flex flex-col items-center gap-0.5 text-[10.5px] font-semibold', 'text-brand' => in_array($route, $match, true), 'text-muted' => ! in_array($route, $match, true)])>
                 <x-icon :name="$icon" :size="22" :fill="in_array($route, $match, true) && ! in_array($icon, ['users', 'chat'])" />{{ $label }}
                 @if ($key === 'activity' || $key === 'chat')<livewire:nav-badge :kind="$key" :float="true" :key="'dock-'.$key" />@endif

@@ -58,7 +58,8 @@ class Pipeline extends Component
             $q->with(['tasks' => fn ($t) => $t->where('done', false), 'updates.author']);
         }
         if ($this->mine) {
-            $q->where(fn ($w) => $w->where('user_id', $me->id)->orWhereHas('members', fn ($m) => $m->where('users.id', $me->id)));
+            $q->where(fn ($w) => $w->where('user_id', $me->id)->orWhereHas('members', fn ($m) => $m->where('users.id', $me->id))
+                ->when(\App\Models\Team::ready(), fn ($t) => $t->orWhereIn('team_id', $me->teams()->select('teams.id'))));
         }
         if ($this->challenge !== 'all') {
             $q->where('challenge_id', (int) $this->challenge);

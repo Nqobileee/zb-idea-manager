@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -79,6 +80,18 @@ class User extends Authenticatable
     public function conversations()
     {
         return Conversation::where('user_a', $this->id)->orWhere('user_b', $this->id);
+    }
+
+    /** Teams this user belongs to. Empty until the teams migration has run. */
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class, 'team_user')->withTimestamps()->orderBy('teams.name');
+    }
+
+    /** Team and project group chats this user was added to (the all-staff group is separate). */
+    public function groupChats()
+    {
+        return Conversation::whereIn('id', DB::table('conversation_members')->where('user_id', $this->id)->select('conversation_id'));
     }
 
     /** Create a display name from a work email: tinashe.moyo@zb.co.zw becomes Tinashe Moyo. */

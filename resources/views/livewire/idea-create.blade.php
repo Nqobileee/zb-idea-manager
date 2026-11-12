@@ -28,6 +28,15 @@
             </div>
         </div>
 
+        @if ($teams->isNotEmpty())
+            <div>
+                <label class="lbl" for="tm">{{ $challenge ? 'Apply with a team' : 'Put forward by a team' }} <span class="font-normal text-muted">(optional)</span></label>
+                <select id="tm" wire:model="team" class="inp"><option value="">Just me</option>@foreach ($teams as $t)<option value="{{ $t->id }}">{{ $t->name }}</option>@endforeach</select>
+                <p class="hint mt-1">Everyone on the team can see the idea and work on it, even if it is private.</p>
+                @error('team')<p class="err">{{ $message }}</p>@enderror
+            </div>
+        @endif
+
         @if (\App\Models\Idea::hasVisibility())
         <fieldset>
             <legend class="lbl">Who can see this idea?</legend>

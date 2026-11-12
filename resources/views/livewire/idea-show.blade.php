@@ -10,6 +10,10 @@
         <x-stage :status="$idea->status" />@if (\App\Models\Idea::hasVisibility())<span class="chip chip-ghost">{{ $idea->is_public ? "Public" : "Private" }}</span>@endif
         <span class="font-mono text-xs text-muted">{{ $idea->code }}</span>
         @if ($idea->approved)<span class="chip"><x-icon name="check" :size="13" /> Approved by {{ $idea->approver?->name }}</span>@endif
+        @if (\App\Models\Team::ready())
+            @if ($idea->team)<a href="{{ route('teams.show', $idea->team) }}" wire:navigate class="chip"><x-icon name="users" :size="13" /> {{ $idea->team->name }}</a>@endif
+            @if (! $idea->approved && $idea->approvalsNeeded() > 1)<span class="chip chip-ghost" title="Executives who approved so far">Group decision {{ $idea->approvals->count() }} of {{ $idea->approvalsNeeded() }}</span>@endif
+        @endif
         @if ($idea->source === 'whatsapp')<span class="chip chip-ghost">Posted from WhatsApp</span>@endif
         <a href="{{ route('projects.show', $idea) }}" wire:navigate class="btn btn-sm"><x-icon name="board" :size="15" /> Open project</a>
         @if ($idea->canBeManagedBy($me))
@@ -62,19 +66,25 @@
     @if ($me->is_admin)
         <section class="mt-6 rounded-[18px] border border-tint-2 bg-tint p-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
-                <div><div class="eyebrow !mb-0">Executive review</div><p class="hint mt-1">{{ $idea->approved ? 'Approved '.$idea->approved_at?->diffForHumans() : 'Not approved yet.' }}</p></div>
+                <div><div class="eyebrow !mb-0">Executive review</div><p class="hint mt-1">{{ $idea->approved ? 'Approved '.$idea->approved_at?->diffForHumans() : 'Not approved yet.' }}</p>
+                    @if (\App\Models\Team::ready() && $idea->approvalsNeeded() > 1)
+                        <p class="hint mt-1">{{ $idea->approved ? 'Accepted by' : 'Needs '.$idea->approvalsNeeded().' executives. Approved so far:' }} {{ $idea->approvals->isEmpty() ? 'nobody yet' : $idea->approvals->pluck('name')->implode(', ') }}.</p>
+                    @endif
+                </div>
                 <button wire:click="messageAuthor" class="btn btn-sm"><x-icon name="chat" :size="15" /> Message {{ $idea->author->first_name }}</button>
             </div>
             <div class="mt-3.5 flex flex-wrap items-center gap-2.5">
                 <label class="lbl !mb-0" for="st">Stage</label>
                 <select id="st" wire:model="status" wire:change="changeStatus" class="inp !h-9 !w-auto bg-white text-[13px]">@foreach (\App\Models\Idea::STATUSES as $s)<option>{{ $s }}</option>@endforeach</select>
             </div>
-            @unless ($idea->approved)
+            @php($voted = \App\Models\Team::ready() && $idea->approvals->contains('id', $me->id))
+            @unless ($idea->approved || $voted)
                 <div class="mt-3.5 space-y-2.5">
                     <textarea wire:model="note" class="inp bg-white" rows="2" placeholder="Optional note for the author"></textarea>
-                    <button wire:click="approve" wire:confirm="Approve this idea and email the author?" class="btn btn-primary btn-sm"><x-icon name="check" :size="15" /> Approve</button>
+                    <button wire:click="approve" wire:confirm="{{ $idea->approvalsNeeded() > 1 ? 'Add your approval? The idea is accepted when '.$idea->approvalsNeeded().' executives approve it.' : 'Approve this idea and email the author?' }}" class="btn btn-primary btn-sm"><x-icon name="check" :size="15" /> {{ $idea->approvalsNeeded() > 1 ? 'Add my approval' : 'Approve' }}</button>
                 </div>
             @endunless
+            @if ($voted && ! $idea->approved)<p class="hint mt-3">You approved this. It is accepted when {{ $idea->approvalsNeeded() - $idea->approvals->count() }} more {{ \Illuminate\Support\Str::plural('executive', $idea->approvalsNeeded() - $idea->approvals->count()) }} approve.</p>@endif
         </section>
     @endif
 

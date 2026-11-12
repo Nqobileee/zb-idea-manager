@@ -35,7 +35,7 @@ class Message extends Model
         if (! Conversation::hasGroupChat()) {
             return;
         }
-        $mine = Conversation::where('is_group', true)->orWhere('user_a', $user->id)->orWhere('user_b', $user->id)->select('id');
+        $mine = Conversation::visibleTo($user)->select('conversations.id');
         $waiting = static::whereNull('delivered_at')->where('user_id', '!=', $user->id)->whereIn('conversation_id', $mine);
         $senders = (clone $waiting)->distinct()->pluck('user_id');
         if ($senders->isEmpty()) {

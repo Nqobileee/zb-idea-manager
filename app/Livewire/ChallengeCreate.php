@@ -21,6 +21,9 @@ class ChallengeCreate extends Component
 
     public string $deadline = '';
 
+    /** How many executives must approve an answer before it counts as accepted. */
+    public int $approvals = 1;
+
     public function mount(?\App\Models\Challenge $challenge = null): void
     {
         abort_unless(auth()->user()->is_admin, 403);
@@ -30,6 +33,7 @@ class ChallengeCreate extends Component
             $this->brief = $challenge->brief;
             $this->keywords = implode(', ', $challenge->keywords ?? []);
             $this->deadline = $challenge->deadline?->format('Y-m-d') ?? '';
+            $this->approvals = (int) ($challenge->approvals_required ?? 1);
         }
     }
 
@@ -38,7 +42,9 @@ class ChallengeCreate extends Component
         $data = $this->validate([
             'title' => 'required|string|max:140', 'brief' => 'required|string|max:1500',
             'keywords' => 'nullable|string|max:300', 'deadline' => $this->challengeId ? 'nullable|date' : 'nullable|date|after:today',
+            'approvals' => 'required|integer|min:1|max:9',
         ]);
+        $data['approvals_required'] = $data['approvals'];
         $c = $this->challengeId
             ? $actions->updateChallenge(\App\Models\Challenge::findOrFail($this->challengeId), auth()->user(), $data)
             : $actions->postChallenge(auth()->user(), $data);
@@ -48,6 +54,6 @@ class ChallengeCreate extends Component
 
     public function render()
     {
-        return view('livewire.challenge-create')->title($this->challengeId ? 'Edit challenge' : 'New challenge');
+        return view('livewire.challenge-create', ['executives' => max(1, \App\Models\User::where('is_admin', true)->count())])->title($this->challengeId ? 'Edit challenge' : 'New challenge');
     }
 }
