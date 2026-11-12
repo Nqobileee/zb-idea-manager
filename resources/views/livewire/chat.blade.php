@@ -13,7 +13,7 @@
         </div>
     @endif
 
-    <div @class(['grid overflow-hidden md:h-[calc(100dvh-160px)] md:min-h-[420px] md:grid-cols-[300px_minmax(0,1fr)] md:rounded-[20px] md:border md:border-line', 'h-dvh' => (bool) $conv, 'h-[calc(100dvh-190px)]' => ! $conv])>
+    <div @class(['grid overflow-hidden md:h-[calc(100dvh-210px)] md:min-h-[420px] md:grid-cols-[300px_minmax(0,1fr)] md:rounded-[20px] md:border md:border-line', 'h-dvh' => (bool) $conv, 'h-[calc(100dvh-190px)]' => ! $conv])>
         {{-- Conversation list: hidden on phones while a thread is open --}}
         <div @class(['overflow-y-auto md:border-r md:border-line', 'hidden md:block' => (bool) $conv])>
             @forelse ($list as $c)

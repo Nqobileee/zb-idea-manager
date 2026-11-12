@@ -86,7 +86,8 @@
         </div>
     </aside>
 
-    <div class="min-w-0 md:relative md:mr-4 md:min-h-[calc(100dvh-72px)] md:rounded-t-2xl md:border md:border-b-0 md:border-line md:bg-white">
+    {{-- On desktop the card stays put and only its contents scroll, so the rounded top and the collapse button never move --}}
+    <div class="min-w-0 md:relative md:mr-4 md:h-[calc(100dvh-72px)] md:rounded-t-2xl md:border md:border-b-0 md:border-line md:bg-white">
         <button type="button" class="absolute top-4 -left-3.5 z-10 hidden size-7 place-items-center rounded-full border border-line bg-white text-muted shadow-sm hover:text-ink md:grid"
                 x-on:click="collapsed = ! collapsed" x-bind:aria-label="collapsed ? 'Expand menu' : 'Collapse menu'" aria-label="Collapse menu">
             <x-icon name="back" :size="15" x-bind:class="collapsed && 'rotate-180'" />
@@ -116,7 +117,7 @@
             </header>
         @endunless
 
-        <main @class(['min-w-0 md:px-8 md:pt-8 md:pb-24', 'px-4 pt-[calc(68px+env(safe-area-inset-top,0px))]' => ! $bare, 'pb-32' => ! $bare && ! ($noDock ?? false), 'pb-24' => ! $bare && ($noDock ?? false), 'p-0' => $bare])>
+        <main @class(['min-w-0 md:h-full md:overflow-y-auto md:rounded-t-2xl md:px-8 md:pt-8 md:pb-24', 'px-4 pt-[calc(68px+env(safe-area-inset-top,0px))]' => ! $bare, 'pb-32' => ! $bare && ! ($noDock ?? false), 'pb-24' => ! $bare && ($noDock ?? false), 'p-0' => $bare])>
             {{ $slot }}
         </main>
     </div>
