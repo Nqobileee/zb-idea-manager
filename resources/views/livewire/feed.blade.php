@@ -3,8 +3,9 @@
         <div class="eyebrow">Ideas</div><h1 class="page-title">What colleagues are building</h1>
     </div>
 
+    {{-- Phones only: desktop searches from the top bar dropdown --}}
     @if ($showSearch || $search !== '')
-        <div class="mb-3 flex items-center gap-2 rounded-full border border-line px-4">
+        <div class="mb-3 flex items-center gap-2 rounded-full border border-line px-4 md:hidden">
             <x-icon name="search" :size="17" class="text-muted" />
             <input wire:model.live.debounce.300ms="search" type="search" placeholder="Search ideas or people" class="h-11 w-full bg-transparent outline-none" aria-label="Search ideas or people" autofocus>
             <button wire:click="closeSearch" class="iconbtn !size-8 flex-none" aria-label="Close search"><x-icon name="x" :size="16" /></button>

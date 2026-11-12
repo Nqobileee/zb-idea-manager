@@ -37,14 +37,9 @@
         <span x-show="! collapsed" class="h-8 w-px flex-none bg-line"></span>
         <span x-show="! collapsed" class="truncate font-display text-[22px] font-semibold tracking-tight">Idea Manager</span>
     </a>
-    <form method="GET" action="{{ route('home') }}" class="flex min-w-0 flex-1 justify-center" role="search"
-          x-data x-on:keydown.window.ctrl.k.prevent="$refs.q.focus()" x-on:keydown.window.meta.k.prevent="$refs.q.focus()">
-        <label class="flex h-12 w-full max-w-[650px] items-center gap-3 rounded-xl border border-line bg-white px-4 focus-within:border-brand focus-within:ring-2 focus-within:ring-tint-2">
-            <x-icon name="search" :size="19" class="flex-none text-muted" />
-            <input x-ref="q" name="q" type="search" value="{{ request('q') }}" placeholder="Search ideas, challenges and people" class="h-full min-w-0 flex-1 bg-transparent text-[15.5px] outline-none placeholder:text-muted" aria-label="Search ideas">
-            <kbd class="flex-none rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-muted">Ctrl K</kbd>
-        </label>
-    </form>
+    <div class="flex min-w-0 flex-1 justify-center" role="search">
+        <livewire:global-search key="top-search" />
+    </div>
     <div class="flex flex-none items-center gap-3">
         <a href="{{ route('ideas.create') }}" wire:navigate class="btn btn-primary"><x-icon name="plus" :size="16" /> Post an idea</a>
         <a href="{{ route('activity') }}" wire:navigate class="iconbtn relative size-11 [&_.count]:bg-alert" aria-label="Activity">
