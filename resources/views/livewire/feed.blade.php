@@ -20,7 +20,7 @@
         <div class="relative ml-auto" x-data="{ open: $wire.entangle('showFilter') }" x-on:keydown.escape.window="open = false">
             <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="true" class="btn btn-sm hidden md:inline-flex"><x-icon name="filter" :size="16" /> Filter @if (count($statuses) || $challenge !== 'all')<span class="count !ml-0">{{ count($statuses) + ($challenge !== 'all' ? 1 : 0) }}</span>@endif</button>
             <div x-cloak x-show="open" x-transition.origin.top.right x-on:click.outside="open = false"
-                 class="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-white p-2 shadow-xl" role="menu" aria-label="Filter ideas">
+                 class="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-line bg-white p-2 shadow-xl" role="menu" aria-label="Filter ideas">
                 <div class="px-2 pt-1 pb-1.5 text-xs font-semibold text-muted">Stage</div>
                 @foreach (\App\Models\Idea::STATUSES as $s)
                     <label class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-surface">
@@ -28,12 +28,20 @@
                         <span @class(['tag', \App\Models\Idea::stageClasses($s)])>{{ $s }}</span>
                     </label>
                 @endforeach
-                <label for="chf" class="mt-1 block border-t border-line px-2 pt-2.5 pb-1.5 text-xs font-semibold text-muted">Challenge</label>
-                <div class="px-2 pb-1">
-                    <select id="chf" wire:model.live="challenge" class="inp !h-9 !rounded-lg !px-2.5 text-[13px]">
-                        <option value="all">All challenges</option>
-                        @foreach ($challenges as $c)<option value="{{ $c->id }}">{{ $c->title }}</option>@endforeach
-                    </select>
+                <div class="mt-1 border-t border-line px-2 pt-2.5 pb-1.5 text-xs font-semibold text-muted" id="chf">Challenge</div>
+                <div class="max-h-56 overflow-y-auto" role="radiogroup" aria-labelledby="chf">
+                    @foreach (['all' => 'All challenges'] + $challenges->mapWithKeys(fn ($c) => [(string) $c->id => $c->title])->all() as $value => $label)
+                        @php($on = (string) $challenge === (string) $value)
+                        <label wire:key="chf{{ $value }}" @class(['flex cursor-pointer items-start gap-2.5 rounded-lg px-2 py-2 text-[13.5px] leading-snug hover:bg-surface', 'bg-tint font-semibold text-ink hover:bg-tint' => $on, 'text-ink-2' => ! $on])>
+                            <input type="radio" name="feed-challenge" value="{{ $value }}" wire:model.live="challenge" class="sr-only">
+                            <span @class(['mt-px grid size-4 flex-none place-items-center rounded-full', 'bg-brand text-white' => $on, 'border border-line' => ! $on])>@if ($on)<x-icon name="check" :size="11" />@endif</span>
+                            @if ($value === 'all')
+                                <span>{{ $label }}</span>
+                            @else
+                                <span class="flex min-w-0 items-start gap-1.5"><x-icon name="flag" :size="13" class="mt-0.5 flex-none text-brand" /><span>{{ $label }}</span></span>
+                            @endif
+                        </label>
+                    @endforeach
                 </div>
                 @if (count($statuses) || $challenge !== 'all')
                     <button type="button" wire:click="clearFilters" class="mt-1 w-full rounded-lg px-2 py-1.5 text-left text-sm font-semibold text-brand hover:bg-surface">Clear filters</button>
