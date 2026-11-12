@@ -25,7 +25,9 @@ class GlobalSearchTest extends TestCase
 
         $this->actingAs($author);
         Livewire::test(GlobalSearch::class)
-            ->set('q', 'z')->assertDontSee('Zebra queue tickets')
+            ->assertSee('Jump to')->assertSee('Pipeline')
+            ->set('q', 'pipe')->assertSee('Pipeline')
+            ->set('q', 'z')->assertSee('Zebra queue tickets')
             ->set('q', 'zebra')->assertSee('Zebra queue tickets')->assertSee('Zebra crossing payments')
             ->set('q', $author->name)->assertSee($author->name)
             ->set('q', 'nothing-matches-this')->assertSee('Nothing matches');

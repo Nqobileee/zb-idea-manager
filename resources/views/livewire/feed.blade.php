@@ -16,8 +16,18 @@
         @foreach (['foryou' => 'For you', 'latest' => 'Latest'] as $key => $label)
             <button wire:click="$set('tab','{{ $key }}')" @class(['relative px-4 py-3 text-sm font-semibold', 'text-brand after:absolute after:inset-x-3 after:bottom-[-1px] after:h-0.5 after:rounded after:bg-brand' => $tab === $key, 'text-muted' => $tab !== $key])>{{ $label }}</button>
         @endforeach
+        {{-- Search the feed (desktop): the icon opens a small box in place, next to Filter --}}
+        <div class="ml-auto hidden items-center md:flex" x-data="{ open: @js($search !== '') }">
+            <div x-cloak x-show="open" x-transition.opacity class="flex h-[34px] w-60 items-center gap-2 rounded-full border border-line bg-white pr-1 pl-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-tint-2">
+                <x-icon name="search" :size="15" class="flex-none text-muted" />
+                <input x-ref="s" wire:model.live.debounce.300ms="search" type="text" placeholder="Search ideas or people" aria-label="Search ideas or people"
+                       x-on:keydown.escape="$wire.closeSearch(); open = false" class="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted">
+                <button type="button" wire:click="closeSearch" x-on:click="open = false" class="grid size-6 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" aria-label="Close search"><x-icon name="x" :size="13" /></button>
+            </div>
+            <button type="button" x-show="! open" x-on:click="open = true; $nextTick(() => $refs.s.focus())" class="btn btn-sm !w-[34px] !px-0" aria-label="Search ideas"><x-icon name="search" :size="16" /></button>
+        </div>
         {{-- Filter dropdown. The phone top bar opens the same menu through the toggle-filter event. --}}
-        <div class="relative ml-auto" x-data="{ open: $wire.entangle('showFilter') }" x-on:keydown.escape.window="open = false">
+        <div class="relative ml-auto md:ml-2" x-data="{ open: $wire.entangle('showFilter') }" x-on:keydown.escape.window="open = false">
             <button type="button" x-on:click="open = ! open" x-bind:aria-expanded="open" aria-haspopup="true" class="btn btn-sm hidden md:inline-flex"><x-icon name="filter" :size="16" /> Filter @if (count($statuses) || $challenge !== 'all')<span class="count !ml-0">{{ count($statuses) + ($challenge !== 'all' ? 1 : 0) }}</span>@endif</button>
             <div x-cloak x-show="open" x-transition.origin.top.right x-on:click.outside="open = false"
                  class="absolute top-[calc(100%+8px)] right-0 z-30 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-line bg-white p-2 shadow-xl" role="menu" aria-label="Filter ideas">

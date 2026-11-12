@@ -3,11 +3,11 @@
      x-on:click.outside="open = false" x-on:keydown.escape="open = false; $refs.q.blur()">
     <label class="flex h-12 w-full items-center gap-3 rounded-xl border border-line bg-white px-4 focus-within:border-brand focus-within:ring-2 focus-within:ring-tint-2">
         <x-icon name="search" :size="19" class="flex-none text-muted" />
-        <input x-ref="q" wire:model.live.debounce.250ms="q" type="text" autocomplete="off" placeholder="Search ideas, challenges and people"
+        <input x-ref="q" wire:model.live.debounce.120ms="q" type="text" autocomplete="off" placeholder="Search ideas, challenges, people, teams and pages"
                x-on:focus="open = true" x-on:input="open = true"
                x-on:keydown.enter.prevent="const a = $refs.list?.querySelector('a'); if (a) a.click()"
                x-on:keydown.down.prevent="$refs.list?.querySelector('a')?.focus()"
-               class="h-full min-w-0 flex-1 bg-transparent text-[15.5px] outline-none placeholder:text-muted" aria-label="Search ideas, challenges and people" role="combobox" x-bind:aria-expanded="open">
+               class="h-full min-w-0 flex-1 bg-transparent text-[15.5px] outline-none placeholder:text-muted" aria-label="Search everything" role="combobox" x-bind:aria-expanded="open">
         @if ($q !== '')
             <button type="button" wire:click="$set('q', '')" x-on:click="$refs.q.focus()" class="grid size-7 flex-none place-items-center rounded-full text-muted hover:bg-surface hover:text-ink" aria-label="Clear search"><x-icon name="x" :size="15" /></button>
         @else
@@ -15,7 +15,8 @@
         @endif
     </label>
 
-    @if (mb_strlen($term) >= 2)
+    {{-- Suggestions: quick links while empty, then matches from the first letter --}}
+    @if ($total > 0 || $term !== '')
         <div x-cloak x-show="open" x-transition.origin.top x-ref="list"
              x-on:keydown.down.prevent="let n = $focus.within($refs.list).getNext(); n ? n.focus() : null"
              x-on:keydown.up.prevent="let p = $focus.within($refs.list).getPrevious(); p ? p.focus() : $refs.q.focus()"
@@ -26,6 +27,18 @@
 
             @php($row = 'flex items-center gap-3 rounded-xl px-2.5 py-2 outline-none hover:bg-surface focus:bg-surface')
             @php($head = 'px-2.5 pt-2 pb-1 text-xs font-semibold text-muted')
+
+            <div wire:loading.flex wire:target="q" class="items-center gap-2 px-2.5 pt-1 pb-0.5 text-xs text-muted"><span class="size-3 animate-spin rounded-full border-2 border-line border-t-brand"></span>Searching…</div>
+
+            @if ($results['pages']->isNotEmpty())
+                <div class="{{ $head }}">{{ $term === '' ? 'Jump to' : 'Pages' }}</div>
+                @foreach ($results['pages'] as $page)
+                    <a href="{{ $page['url'] }}" wire:navigate wire:key="gpg{{ $loop->index }}-{{ $page['label'] }}" class="{{ $row }} !py-1.5" x-on:click="open = false">
+                        <span class="grid size-[30px] flex-none place-items-center rounded-lg bg-surface text-ink-2"><x-icon :name="$page['icon']" :size="16" /></span>
+                        <span class="min-w-0 flex-1 truncate text-[14px] font-medium">{{ $page['label'] }}</span>
+                    </a>
+                @endforeach
+            @endif
 
             @if ($results['ideas']->isNotEmpty())
                 <div class="{{ $head }}">Ideas</div>
